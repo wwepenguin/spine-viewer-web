@@ -188,17 +188,22 @@
           </div>
           <div id="canvasMount"></div>
           <div id="slotMarker" class="slot-marker" hidden></div>
-          <aside id="performancePanel" class="performance-panel" aria-label="性能監控面板">
+          <aside
+            id="performancePanel"
+            class="performance-panel"
+            aria-label="Performance monitor"
+            lang="en"
+          >
             <details open>
               <summary>
-                <span class="performance-dot"></span>性能監控 <strong id="perfFps">— FPS</strong>
+                <span class="performance-dot"></span>Performance <strong id="perfFps">— FPS</strong>
               </summary>
               <div class="performance-body">
                 <svg
                   class="performance-chart"
                   viewBox="0 0 216 44"
                   role="img"
-                  aria-label="最近 30 秒 FPS 趨勢"
+                  aria-label="FPS over the last 30 seconds"
                 >
                   <path d="M0 22H216" stroke="#40516a" stroke-dasharray="3 3" />
                   <polyline
@@ -210,58 +215,59 @@
                   />
                 </svg>
                 <div class="performance-chart-label">
-                  <span>FPS · 最近 30 秒</span><span id="perfGraphScale">0–60</span>
+                  <span>FPS · Last 30 seconds</span><span id="perfGraphScale">0–60</span>
                 </div>
                 <dl>
                   <div>
-                    <dt>平均幀間隔</dt>
+                    <dt>Avg. frame interval</dt>
                     <dd id="perfFrame">—</dd>
                   </div>
                   <div>
-                    <dt>P95 幀間隔</dt>
+                    <dt>P95 frame interval</dt>
                     <dd id="perfP95">—</dd>
                   </div>
                   <div>
-                    <dt>CPU 更新＋提交</dt>
+                    <dt>CPU update + submit</dt>
                     <dd id="perfCpu">—</dd>
                   </div>
                   <div>
-                    <dt>Draw Calls / 幀</dt>
+                    <dt>Draw Calls / frame</dt>
                     <dd id="perfDrawCalls">—</dd>
                   </div>
                   <div>
                     <dt>Mem · JS Heap</dt>
-                    <dd id="perfHeap">不支援</dd>
+                    <dd id="perfHeap">Not supported</dd>
                   </div>
                   <div class="performance-divider">
                     <dt>Bones / Slots</dt>
                     <dd id="perfModel">—</dd>
                   </div>
                   <div>
-                    <dt>顯示附件 / 三角形</dt>
+                    <dt>Attachments / Triangles</dt>
                     <dd id="perfGeometry">—</dd>
                   </div>
                   <div>
-                    <dt>貼圖頁數</dt>
+                    <dt>Texture pages</dt>
                     <dd id="perfTextures">—</dd>
                   </div>
                   <div>
-                    <dt>Mem · 貼圖估算</dt>
+                    <dt>Mem · Textures (est.)</dt>
                     <dd id="perfTextureBytes">—</dd>
                   </div>
                   <div>
-                    <dt>Canvas 像素</dt>
+                    <dt>Canvas pixels</dt>
                     <dd id="perfResolution">—</dd>
                   </div>
                 </dl>
                 <div class="performance-bottom">
-                  <span id="perfStatus">採樣中…</span
-                  ><button id="perfReset" class="text-button">重設</button>
+                  <span id="perfStatus">Sampling…</span
+                  ><button id="perfReset" class="text-button">Reset</button>
                 </div>
                 <p class="performance-note">
-                  每 0.5 秒更新。Draw Calls 為平均／最高，含除錯線框。CPU 不含 GPU
-                  執行；三角形為裁切前附件數。Heap 為整頁；貼圖以 RGBA 估算，不含 mipmap，非完整 GPU
-                  記憶體。
+                  Updates every 0.5s. Draw Calls: average / peak, including debug overlays. CPU
+                  excludes GPU execution. Triangles are counted before clipping. Heap covers the
+                  whole page. Texture memory estimates RGBA base levels, excluding mipmaps; it is
+                  not total GPU memory.
                 </p>
               </div>
             </details>
@@ -283,9 +289,10 @@
                 id="performanceToggle"
                 class="text-button"
                 aria-controls="performancePanel"
+                lang="en"
                 aria-expanded="true"
               >
-                性能
+                Performance
               </button>
             </div>
           </div>

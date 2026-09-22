@@ -61,7 +61,9 @@ export class SkeletonPerformance {
     this.$('perfHeap').textContent = '—';
     this.$('perfGraph').setAttribute('points', '');
     this.$('perfGraphScale').textContent = '0–60';
-    this.$('perfStatus').textContent = this.doc.hidden ? '背景頁籤 · 暫停採樣' : '採樣中…';
+    this.$('perfStatus').textContent = this.doc.hidden
+      ? 'Background tab · Sampling paused'
+      : 'Sampling…';
   }
   begin() {
     if (!this.enabled || this.doc.hidden) return;
@@ -127,7 +129,7 @@ export class SkeletonPerformance {
     const heap = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
       ?.usedJSHeapSize;
     this.$('perfHeap').textContent =
-      typeof heap === 'number' && Number.isFinite(heap) ? this.mib(heap) : '此瀏覽器不支援';
+      typeof heap === 'number' && Number.isFinite(heap) ? this.mib(heap) : 'Not supported';
     const now = performance.now();
     this.history.push({ time: now, fps });
     this.history = this.history.filter((p) => now - p.time <= 30000);
@@ -143,7 +145,7 @@ export class SkeletonPerformance {
         .join(' '),
     );
     this.updateModel();
-    this.$('perfStatus').textContent = this.viewer.paused ? '動畫暫停 · 持續渲染' : '即時採樣';
+    this.$('perfStatus').textContent = this.viewer.paused ? 'Paused · Still rendering' : 'Live';
     this.elapsed = 0;
     this.intervals = [];
     this.cpu = [];
