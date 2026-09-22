@@ -71,7 +71,12 @@ export interface Elements {
   timeRuler: HTMLElement;
   timelineLanes: HTMLElement;
   playhead: HTMLElement;
-  timeWindow: HTMLSelectElement;
+  zoomTimeIn: HTMLButtonElement;
+  zoomTimeOut: HTMLButtonElement;
+  timeScale: HTMLElement;
+  fitTime: HTMLButtonElement;
+  followTime: HTMLButtonElement;
+  playPausePath: SVGPathElement;
   previousTime: HTMLButtonElement;
   nextTime: HTMLButtonElement;
   restart: HTMLButtonElement;

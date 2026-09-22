@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       name="description"
-      content="Spine 骨架網頁檢視器，支援本機素材、WebP、動畫、Skin 與 Slot 選取標示。"
+      content="Spine skeleton viewer with local assets, WebP, multi-track animation, skins and slot highlighting."
     />
     <title>Spine Viewer · PixiJS</title>
     <link
@@ -20,7 +20,7 @@
       <button
         id="panelToggle"
         class="icon-button mobile-only"
-        aria-label="開啟側邊面板"
+        aria-label="Toggle sidebar"
         aria-expanded="false"
       >
         ☰
@@ -35,9 +35,9 @@
         ><span>pixi-spine <b>3.1.2</b></span>
       </div>
       <div class="header-actions">
-        <button id="sampleButton" class="quiet">範例</button
-        ><button id="folderButton" class="quiet">開啟資料夾</button
-        ><button id="openButton" class="primary">＋ 開啟素材</button>
+        <button id="sampleButton" class="quiet">Sample</button
+        ><button id="folderButton" class="quiet">Open folder</button
+        ><button id="openButton" class="primary">＋ Open assets</button>
       </div>
       <input
         id="fileInput"
@@ -49,21 +49,21 @@
       <input id="folderInput" type="file" multiple webkitdirectory hidden />
     </header>
     <main class="workspace">
-      <aside id="sidebar" class="sidebar" aria-label="骨架控制面板">
+      <aside id="sidebar" class="sidebar" aria-label="Skeleton controls">
         <section class="source-section">
           <div class="section-heading">
-            <h2>骨架素材</h2>
+            <h2>Assets</h2>
             <span id="formatBadge" class="badge">SPINE 3.8</span>
           </div>
           <label for="skeletonSelect">Skeleton</label
           ><select id="skeletonSelect" disabled>
-            <option>準備載入…</option>
+            <option>Loading…</option>
           </select>
           <label for="atlasSelect">Atlas</label
           ><select id="atlasSelect" disabled>
             <option>—</option>
           </select>
-          <p class="file-note">拖入骨架、atlas 與貼圖。素材只在此瀏覽器內處理。</p>
+          <p class="file-note">Drop a skeleton, atlas and textures. Assets stay in your browser.</p>
         </section>
         <section class="skin-section">
           <div class="section-heading">
@@ -77,28 +77,28 @@
             <h2>Slots</h2>
             <div class="section-actions">
               <span id="slotCount" class="count">0</span
-              ><button id="clearSlot" class="text-button">取消</button>
+              ><button id="clearSlot" class="text-button">Clear</button>
             </div>
           </div>
           <input
             id="slotSearch"
             class="search"
             type="search"
-            placeholder="搜尋 Slot 名稱"
-            aria-label="搜尋 Slot 名稱"
+            placeholder="Search slots"
+            aria-label="Search slots"
             autocomplete="off"
           />
           <div
             id="slotList"
             class="item-list slot-list"
             role="listbox"
-            aria-label="Slot 列表"
+            aria-label="Slot list"
             tabindex="0"
           ></div>
           <div id="slotDetails" class="slot-details">
             <span class="selection-dot"></span
-            ><span id="slotDetailText">選取 Slot，在畫面中標示</span
-            ><button id="copySlot" class="text-button" disabled>複製</button>
+            ><span id="slotDetailText">Select a slot to highlight it</span
+            ><button id="copySlot" class="text-button" disabled>Copy</button>
           </div>
         </section>
         <section class="animation-section">
@@ -107,56 +107,57 @@
             <span id="animationCount" class="count">0</span>
           </div>
           <p class="track-hint">
-            套用至 <strong id="selectedTrack">Track 0</strong>；在下方時間軸選取軌道。
+            Apply to <strong id="selectedTrack">Track 0</strong>. Select a track in the timeline
+            below.
           </p>
           <div
             id="animationList"
             class="item-list animation-list"
             role="listbox"
-            aria-label="動畫列表"
+            aria-label="Animation list"
             tabindex="0"
           ></div>
           <details class="advanced">
-            <summary>所選軌道設定</summary>
+            <summary>Selected track settings</summary>
             <div class="mix-row">
-              <label for="trackSpeed">軌道速度</label
+              <label for="trackSpeed">Track speed</label
               ><input id="trackSpeed" type="number" min="0" max="3" step="0.25" value="1" /><span
                 >×</span
               >
             </div>
             <div class="mix-row">
-              <label for="mix">切換混合</label
+              <label for="mix">Mix duration</label
               ><input id="mix" type="number" min="0" max="4" step="0.05" value="0.2" /><span
-                >秒</span
+                >s</span
               >
             </div>
             <label class="range-label" for="trackAlpha"
-              >軌道權重 <output id="alphaValue">100%</output></label
+              >Track weight <output id="alphaValue">100%</output></label
             ><input id="trackAlpha" type="range" min="0" max="1" step="0.01" value="1" />
             <div class="mix-bottom">
               <label><input id="additive" type="checkbox" disabled />Additive</label
-              ><button id="clearTrack" class="text-button">清除此軌道</button>
+              ><button id="clearTrack" class="text-button">Clear track</button>
             </div>
           </details>
         </section>
         <section class="view-section">
           <div class="section-heading">
-            <h2>檢視</h2>
+            <h2>View</h2>
             <button id="setupPose" class="text-button">Setup pose</button>
           </div>
           <div class="view-controls">
-            <button id="fitButton">適合畫面 <kbd>F</kbd></button
-            ><button id="flipX" aria-pressed="false">翻轉 X</button
-            ><button id="flipY" aria-pressed="false">翻轉 Y</button>
+            <button id="fitButton">Fit view <kbd>F</kbd></button
+            ><button id="flipX" aria-pressed="false">Flip X</button
+            ><button id="flipY" aria-pressed="false">Flip Y</button>
           </div>
-          <label class="range-label" for="zoom">縮放 <output id="zoomValue">100%</output></label
+          <label class="range-label" for="zoom">Zoom <output id="zoomValue">100%</output></label
           ><input id="zoom" type="range" min="10" max="400" value="100" />
           <div class="checks">
             <label><input id="pma" type="checkbox" /> Premultiplied alpha</label
             ><label><input id="linear" type="checkbox" checked /> Linear filtering</label>
           </div>
           <details class="advanced">
-            <summary>除錯顯示</summary>
+            <summary>Debug overlays</summary>
             <div id="debugOptions" class="debug-options">
               <label><input type="checkbox" data-debug="drawBones" />Bones</label
               ><label><input type="checkbox" data-debug="drawRegionAttachments" />Regions</label
@@ -170,17 +171,17 @@
           </details>
         </section>
       </aside>
-      <section class="viewer-column" aria-label="動畫預覽">
+      <section class="viewer-column" aria-label="Animation preview">
         <div
           id="viewport"
           class="viewport"
           tabindex="0"
-          aria-label="骨架預覽，拖曳移動畫面，滾輪縮放"
+          aria-label="Skeleton preview: drag to pan, scroll to zoom"
         >
           <div class="viewport-heading">
             <div>
               <span class="eyebrow">SKELETON PREVIEW</span
-              ><strong id="modelName">載入範例中</strong>
+              ><strong id="modelName">Loading sample</strong>
             </div>
             <span id="skeletonInfo" class="model-meta"></span>
           </div>
@@ -270,17 +271,17 @@
               </div>
             </details>
           </aside>
-          <div id="loading" class="loading" role="status">載入骨架中…</div>
+          <div id="loading" class="loading" role="status">Loading skeleton…</div>
           <div id="errorPanel" class="error-panel" role="alert" hidden>
-            <strong>無法載入素材</strong>
+            <strong>Unable to load assets</strong>
             <p id="errorText"></p>
-            <button id="dismissError">關閉訊息</button>
+            <button id="dismissError">Dismiss</button>
           </div>
           <div id="dropOverlay" class="drop-overlay" hidden>
-            <strong>放開以載入素材</strong><span>JSON / SKEL ＋ ATLAS ＋ PNG / WebP</span>
+            <strong>Drop to load assets</strong><span>JSON / SKEL ＋ ATLAS ＋ PNG / WebP</span>
           </div>
           <div class="viewport-footer">
-            <span>拖曳平移 · 滾輪縮放</span>
+            <span>Drag to pan · Scroll to zoom</span>
             <div class="viewport-tools">
               <span id="rendererInfo">WebGL</span
               ><button
@@ -296,18 +297,22 @@
           </div>
         </div>
       </section>
-      <section class="timeline-dock" aria-label="多軌時間軸">
+      <section class="timeline-dock" aria-label="Multi-track timeline">
         <div class="timeline-toolbar">
           <h2>Multi-track <span id="trackCount" class="count">0 active</span></h2>
-          <button id="restart" class="icon-button" aria-label="全部軌道回到開頭">↺</button>
-          <button id="playPause" class="play-button" aria-label="暫停">Ⅱ</button>
+          <button id="restart" class="icon-button" aria-label="Rewind all tracks">↺</button>
+          <button id="playPause" class="play-button" aria-label="Pause" title="Pause">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path id="playPausePath" d="M6 4h4v16H6zM14 4h4v16h-4z" />
+            </svg>
+          </button>
           <output id="currentTime" class="time">0.00 s</output>
-          <button id="restartTracks" class="text-button">全部重播</button>
-          <label class="loop-label"><input id="loop" type="checkbox" checked />所選軌道 Loop</label>
+          <button id="restartTracks" class="text-button">Restart all</button>
+          <label class="loop-label"><input id="loop" type="checkbox" checked />Selected loop</label>
           <span id="activeAnimation">—</span>
           <label class="speed-control"
-            >速度
-            <select id="speed" aria-label="播放速度">
+            >Speed
+            <select id="speed" aria-label="Playback speed">
               <option value="0.25">0.25×</option>
               <option value="0.5">0.5×</option>
               <option value="0.75">0.75×</option>
@@ -318,17 +323,13 @@
             </select></label
           >
           <div class="timeline-navigation">
-            <button id="previousTime" aria-label="上一段時間">‹</button>
-            <label
-              >範圍
-              <select id="timeWindow" aria-label="時間軸顯示範圍">
-                <option value="2">2 s</option>
-                <option value="5" selected>5 s</option>
-                <option value="10">10 s</option>
-                <option value="30">30 s</option>
-              </select></label
-            >
-            <button id="nextTime" aria-label="下一段時間">›</button>
+            <button id="previousTime" aria-label="Pan timeline left">‹</button>
+            <button id="zoomTimeOut" aria-label="Zoom timeline out" title="Zoom out">−</button>
+            <output id="timeScale" aria-label="Visible timeline duration">5.0 s</output>
+            <button id="zoomTimeIn" aria-label="Zoom timeline in" title="Zoom in">+</button>
+            <button id="fitTime" title="Fit one cycle of all tracks">Fit</button>
+            <button id="followTime" aria-pressed="true" title="Follow the playhead">Follow</button>
+            <button id="nextTime" aria-label="Pan timeline right">›</button>
           </div>
         </div>
         <div class="timeline-scroll">
@@ -339,19 +340,20 @@
               class="time-ruler"
               role="slider"
               tabindex="0"
-              aria-label="多軌播放時間"
+              aria-label="Timeline playhead"
               aria-valuemin="0"
               aria-valuemax="5"
               aria-valuenow="0"
             ></div>
-            <div id="tracks" class="track-layers" role="group" aria-label="動畫軌道"></div>
+            <div id="tracks" class="track-layers" role="group" aria-label="Animation tracks"></div>
             <div id="timelineLanes" class="timeline-lanes">
               <div id="playhead" class="playhead"><span></span></div>
             </div>
           </div>
         </div>
         <p class="timeline-help">
-          拖曳刻度或動畫區塊可同步定位所有軌道 · 選擇動畫後從頭預覽 · 較高軌道覆蓋相同的關鍵幀屬性
+          Scroll to zoom · Drag tracks to pan · Drag ruler or playhead to scrub · Shift + drag /
+          middle drag to pan
         </p>
       </section>
     </main>

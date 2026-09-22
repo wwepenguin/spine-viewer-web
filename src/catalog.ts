@@ -28,9 +28,12 @@ export function resolvePage(data: AssetCatalog, atlasPath: string, page: string)
   const path = normalize(atlasPath.slice(0, atlasPath.lastIndexOf('/') + 1) + page);
   let matches = data.entries.filter((e) => e.path === path);
   if (!matches.length) matches = data.entries.filter((e) => base(e.path) === base(page));
-  if (matches.length > 1) throw Error(`貼圖名稱重複：${page}。請用「開啟資料夾」保留目錄結構。`);
+  if (matches.length > 1)
+    throw Error(
+      `Duplicate texture name: ${page}. Use Open folder to preserve the directory structure.`,
+    );
   if (!matches.length)
-    throw Error(`缺少貼圖：${page}\n請一起選取 atlas 引用的所有 PNG／WebP 貼圖。`);
+    throw Error(`Missing texture: ${page}\nSelect all PNG/WebP textures referenced by the atlas.`);
   return matches[0].file;
 }
 export function matchAtlas(data: AssetCatalog, skeleton: AssetEntry) {

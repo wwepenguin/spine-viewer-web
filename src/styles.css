@@ -1142,3 +1142,66 @@ kbd {
     min-width: 680px;
   }
 }
+/* Timeline navigation manipulates the view, never the animation clock. */
+.timeline-navigation #timeScale {
+  min-width: 48px;
+  text-align: center;
+  color: var(--muted);
+  font: 11px monospace;
+}
+.timeline-navigation button {
+  min-height: 26px;
+}
+.timeline-lanes {
+  cursor: grab;
+}
+.timeline-lanes.panning,
+.time-ruler.panning {
+  cursor: grabbing;
+}
+.playhead {
+  width: 11px;
+  transform: translateX(-50%);
+  background: transparent;
+  box-shadow: none;
+  pointer-events: auto;
+  cursor: ew-resize;
+}
+.playhead::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 1px;
+  background: #ff8f7e;
+  box-shadow: 0 0 5px #ff8f7e66;
+}
+.playhead span {
+  left: 0;
+}
+.play-button {
+  display: grid;
+  place-items: center;
+}
+.play-button svg {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+  pointer-events: none;
+}
+.timeline-toolbar {
+  gap: 9px;
+}
+.timeline-toolbar h2 {
+  gap: 7px;
+  margin-right: 0;
+}
+.timeline-toolbar #activeAnimation {
+  max-width: 120px;
+}
+@media (max-width: 1300px) {
+  .timeline-toolbar .loop-label {
+    display: none;
+  }
+}

@@ -1,12 +1,22 @@
+import { TimelineViewport } from './timeline-viewport';
 import { TRACK_COUNT } from './animation-tracks';
 import type { SkeletonViewer } from './viewer';
 import { $ } from './dom';
 
-/** Shared clock with a paged ruler; loops remain visible without growing the DOM indefinitely. */
+/** Continuous pan/zoom viewport, independent of the shared playback clock. */
 export class TrackPanel {
   private asset?: SkeletonViewer['asset'];
-  private page = 0;
-  private span = 5;
+  private view = new TimelineViewport();
+  private follow = true;
+  private get page() {
+    return this.view.start;
+  }
+  private set page(value: number) {
+    this.view.start = value;
+  }
+  private get span() {
+    return this.view.span;
+  }
   private dragging = false;
   private lastText = 0;
   private rows = Array.from({ length: TRACK_COUNT }, (_, index) => {
@@ -16,10 +26,10 @@ export class TrackPanel {
     selectTrack.type = 'button';
     selectTrack.className = 'track-index';
     selectTrack.textContent = `T${index}`;
-    selectTrack.setAttribute('aria-label', `編輯 Track ${index}`);
+    selectTrack.setAttribute('aria-label', `Edit Track ${index}`);
     selectTrack.onclick = () => this.viewer.setTrack(index);
     const animation = document.createElement('select');
-    animation.setAttribute('aria-label', `Track ${index} 動畫`);
+    animation.setAttribute('aria-label', `Track ${index} animation`);
     animation.onchange = () => {
       if (animation.value) this.viewer.play(animation.value, index);
       else this.viewer.clearTrack(index);
@@ -28,7 +38,7 @@ export class TrackPanel {
     clear.type = 'button';
     clear.className = 'track-clear';
     clear.textContent = '×';
-    clear.title = `清除 Track ${index}`;
+    clear.title = `Clear Track ${index}`;
     clear.setAttribute('aria-label', clear.title);
     clear.onclick = () => this.viewer.clearTrack(index);
     const loop = document.createElement('input');
@@ -39,49 +49,107 @@ export class TrackPanel {
     const lane = document.createElement('div');
     lane.className = 'timeline-lane';
     lane.dataset.track = String(index);
-    lane.setAttribute('aria-label', `Track ${index} 動畫區塊`);
+    lane.setAttribute('aria-label', `Track ${index} clips`);
     return { row, selectTrack, animation, clear, loop, lane };
   });
   constructor(private readonly viewer: SkeletonViewer) {
     $('tracks').replaceChildren(...this.rows.map((row) => row.row));
     $('timelineLanes').prepend(...this.rows.map((row) => row.lane));
-    $('timeWindow').onchange = () => {
-      this.span = Number($('timeWindow').value);
-      this.page = Math.floor(viewer.timelineTime / this.span) * this.span;
+    const updateView = () => {
       this.render();
       this.tick(true);
     };
-    const navigate = (direction: number) => {
-      const nextPage = Math.max(0, this.page + direction * this.span);
-      viewer.paused = true;
-      viewer.onChange?.();
-      this.page = nextPage;
-      this.render();
-      this.tick(true);
+    const zoom = (factor: number, anchor = 0.5) => {
+      this.follow = false;
+      this.view.zoom(factor, anchor);
+      updateView();
     };
-    $('previousTime').onclick = () => navigate(-1);
-    $('nextTime').onclick = () => navigate(1);
+    const pan = (seconds: number) => {
+      this.follow = false;
+      this.view.pan(seconds);
+      updateView();
+    };
+    $('zoomTimeIn').onclick = () => zoom(0.8);
+    $('zoomTimeOut').onclick = () => zoom(1.25);
+    $('previousTime').onclick = () => pan(-this.span / 4);
+    $('nextTime').onclick = () => pan(this.span / 4);
+    $('followTime').onclick = () => {
+      this.follow = !this.follow;
+      if (this.follow) this.view.reveal(viewer.timelineTime);
+      updateView();
+    };
+    $('fitTime').onclick = () => {
+      const durations =
+        viewer.model?.state.tracks.map((entry) =>
+          entry && entry.timeScale > 0 ? entry.animation.duration / entry.timeScale : 0,
+        ) ?? [];
+      this.view.span = Math.max(0.1, Math.min(300, Math.max(1, ...durations) * 1.1));
+      this.page = 0;
+      this.follow = false;
+      updateView();
+    };
     for (const surface of [$('timeRuler'), $('timelineLanes')]) {
+      let gesture: { mode: 'pan' | 'seek'; x: number; start: number; width: number } | undefined;
       const seek = (event: PointerEvent) => {
         const rect = surface.getBoundingClientRect();
         const fraction = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
         viewer.seekAll(this.page + fraction * this.span);
       };
+      surface.addEventListener(
+        'wheel',
+        (event) => {
+          event.preventDefault();
+          if (this.dragging) return;
+          const rect = surface.getBoundingClientRect();
+          const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.width : 1;
+          if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+            pan((((event.deltaX || event.deltaY) * unit) / rect.width) * this.span);
+          } else {
+            zoom(
+              Math.exp(Math.max(-1, Math.min(1, event.deltaY * unit * 0.002))),
+              (event.clientX - rect.left) / rect.width,
+            );
+          }
+        },
+        { passive: false },
+      );
       surface.onpointerdown = (event) => {
-        if (event.button !== 0 || !viewer.model) return;
-        viewer.paused = true;
+        if (event.button !== 0 && event.button !== 1) return;
+        event.preventDefault();
+        this.follow = false;
         this.dragging = true;
+        const mode =
+          event.button === 1 ||
+          event.shiftKey ||
+          (surface === $('timelineLanes') && !(event.target as Element).closest('#playhead'))
+            ? 'pan'
+            : 'seek';
+        gesture = { mode, x: event.clientX, start: this.page, width: surface.clientWidth };
         surface.setPointerCapture(event.pointerId);
-        const lane = (event.target as Element).closest<HTMLElement>('[data-track]');
-        if (lane) viewer.setTrack(Number(lane.dataset.track));
-        seek(event);
+        surface.classList.toggle('panning', mode === 'pan');
+        if (mode === 'seek') {
+          viewer.paused = true;
+          seek(event);
+        }
+        this.render();
       };
       surface.onpointermove = (event) => {
-        if (this.dragging && surface.hasPointerCapture(event.pointerId)) seek(event);
+        if (!gesture || !surface.hasPointerCapture(event.pointerId)) return;
+        if (gesture.mode === 'seek') seek(event);
+        else {
+          this.page = Math.max(
+            0,
+            gesture.start - ((event.clientX - gesture.x) / gesture.width) * this.span,
+          );
+          updateView();
+        }
       };
-      surface.onpointerup = surface.onpointercancel = () => {
+      const finish = () => {
         this.dragging = false;
+        gesture = undefined;
+        surface.classList.remove('panning');
       };
+      surface.onpointerup = surface.onpointercancel = surface.onlostpointercapture = finish;
     }
     $('timeRuler').onkeydown = (event) => {
       let time = viewer.timelineTime;
@@ -92,16 +160,17 @@ export class TrackPanel {
       else return;
       event.preventDefault();
       viewer.paused = true;
-      this.page = Math.floor(Math.max(0, time) / this.span) * this.span;
+      this.follow = false;
+      if (time < this.page || time > this.page + this.span) this.view.reveal(Math.max(0, time));
       viewer.seekAll(Math.max(0, time));
     };
     this.sync();
   }
   sync() {
-    if (!this.dragging) this.page = Math.floor(this.viewer.timelineTime / this.span) * this.span;
     if (this.asset !== this.viewer.asset) {
       this.asset = this.viewer.asset;
-      this.page = 0;
+      this.view = new TimelineViewport();
+      this.follow = true;
       for (const row of this.rows) {
         row.animation.replaceChildren(
           new Option('— No animation —', ''),
@@ -128,17 +197,28 @@ export class TrackPanel {
     this.render();
     this.tick(true);
   }
+  reveal() {
+    this.view.reveal(this.viewer.timelineTime);
+    this.render();
+    this.tick(true);
+  }
   private render() {
+    $('timeScale').textContent = `${this.span.toFixed(this.span < 1 ? 2 : 1)} s`;
+    $('followTime').setAttribute('aria-pressed', String(this.follow));
+    $('zoomTimeIn').disabled = this.span <= TimelineViewport.minSpan;
+    $('zoomTimeOut').disabled = this.span >= TimelineViewport.maxSpan;
     $('previousTime').disabled = this.page === 0;
     const ruler = $('timeRuler');
     ruler.replaceChildren(
       ...Array.from({ length: 11 }, (_, index) => {
         const tick = document.createElement('span');
         tick.style.left = `${index * 10}%`;
-        tick.textContent = `${(this.page + (index * this.span) / 10).toFixed(1)}s`;
+        tick.textContent = `${(this.page + (index * this.span) / 10).toFixed(this.span < 1 ? 3 : this.span < 10 ? 2 : 1)}s`;
         return tick;
       }),
     );
+    ruler.dataset.start = String(this.page);
+    ruler.dataset.span = String(this.span);
     ruler.setAttribute('aria-valuemin', '0');
     ruler.setAttribute(
       'aria-valuemax',
@@ -180,11 +260,12 @@ export class TrackPanel {
   tick(force = false) {
     const time = this.viewer.timelineTime;
     if (
+      this.follow &&
       !this.dragging &&
       !this.viewer.paused &&
       (time < this.page || time >= this.page + this.span)
     ) {
-      this.page = Math.floor(time / this.span) * this.span;
+      this.view.reveal(time);
       this.render();
     }
     const relative = (time - this.page) / this.span;

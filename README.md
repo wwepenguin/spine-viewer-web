@@ -26,23 +26,24 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 ## 程式結構
 
-| 檔案                      | 修改位置                                      |
-| ------------------------- | --------------------------------------------- |
-| `index.html`              | 面板與控制項的 HTML                           |
-| `src/main.ts`             | 介面事件、清單、播放控制及初始化              |
-| `src/animation-tracks.ts` | 多軌設定、混合、同步定位及姿勢重建            |
-| `src/track-panel.ts`      | 下方時間軸、動畫區塊、拖曳與鍵盤定位          |
-| `src/viewer.ts`           | Pixi 場景、動畫、Slot 幾何與標示              |
-| `src/catalog.ts`          | 純函式：檔案分類、atlas 配對、貼圖路徑        |
-| `src/assets.ts`           | File API、圖片解碼、骨架 parser、範例載入     |
-| `src/performance.ts`      | FPS、CPU、實際 WebGL Draw Calls、Mem          |
-| `src/runtime.ts`          | 舊版 pixi-spine 跨 runtime 型別相容層         |
-| `src/types.ts`            | 共用資料模型與公開介面                        |
-| `src/dom.ts`              | HTML ID 對應的元素型別；增加控制項時同步更新  |
-| `src/webmcp.ts`           | 選用的 WebMCP 工具，不影響一般瀏覽器          |
-| `src/styles.css`          | 樣式、響應式介面                              |
-| `public/sample/`          | 官方 Spineboy 3.8 範例，含 JSON / SKEL / WebP |
-| `tests/`                  | 使用 Node test runner 的 TypeScript 測試      |
+| 檔案                       | 修改位置                                      |
+| -------------------------- | --------------------------------------------- |
+| `index.html`               | 面板與控制項的 HTML                           |
+| `src/main.ts`              | 介面事件、清單、播放控制及初始化              |
+| `src/animation-tracks.ts`  | 多軌設定、混合、同步定位及姿勢重建            |
+| `src/timeline-viewport.ts` | 純函式狀態：時間軸連續縮放、平移與指針定位    |
+| `src/track-panel.ts`       | 下方時間軸、動畫區塊、拖曳與鍵盤定位          |
+| `src/viewer.ts`            | Pixi 場景、動畫、Slot 幾何與標示              |
+| `src/catalog.ts`           | 純函式：檔案分類、atlas 配對、貼圖路徑        |
+| `src/assets.ts`            | File API、圖片解碼、骨架 parser、範例載入     |
+| `src/performance.ts`       | FPS、CPU、實際 WebGL Draw Calls、Mem          |
+| `src/runtime.ts`           | 舊版 pixi-spine 跨 runtime 型別相容層         |
+| `src/types.ts`             | 共用資料模型與公開介面                        |
+| `src/dom.ts`               | HTML ID 對應的元素型別；增加控制項時同步更新  |
+| `src/webmcp.ts`            | 選用的 WebMCP 工具，不影響一般瀏覽器          |
+| `src/styles.css`           | 樣式、響應式介面                              |
+| `public/sample/`           | 官方 Spineboy 3.8 範例，含 JSON / SKEL / WebP |
+| `tests/`                   | 使用 Node test runner 的 TypeScript 測試      |
 
 程式使用 ES module import/export，沒有全域 PIXI、SpineIO 或 script 載入順序依賴。`strict: true`，沒有 `@ts-nocheck`；舊套件未完整宣告的成員集中於 `runtime.ts`，以具體介面描述，第三方 `.d.ts` 使用 `skipLibCheck`。
 
@@ -60,12 +61,15 @@ Vite build 附 source map 供除錯；若不想發布原始碼，將 `vite.confi
 
 ## 多軌時間軸
 
-畫面下方提供 Track 0–5。Track 0 選 `walk`、Track 1 選 `shoot`，可同時預覽行走與射擊。各軌都有動畫選單、Loop 與清除按鈕；點 T0–T5 選擇編輯軌道，再到側欄「所選軌道設定」調整速度、權重及 Additive。切換選取軌道不會停止其他軌道；清除一軌也會保留其他軌的時間。
+畫面下方提供 Track 0–5。Track 0 選 `walk`、Track 1 選 `shoot`，可同時預覽行走與射擊。各軌都有動畫選單、Loop 與清除按鈕；點 T0–T5 選擇編輯軌道，再到側欄「Selected track settings」調整速度、權重及 Additive。切換選取軌道不會停止其他軌道；清除一軌也會保留其他軌的時間。
 
 - 所有動畫區塊以 0 秒為共同起點；更換動畫會從頭預覽整個組合。
-- 拖曳刻度或區塊會暫停，並同步定位所有軌道。各軌動畫時間等於共用時間 × 該軌速度；全域播放速度則影響共用時鐘前進速度。
+- 拖曳刻度或播放指針會暫停，並同步定位所有軌道。各軌動畫時間等於共用時間 × 該軌速度；全域播放速度則影響共用時鐘前進速度。
 - 實色區塊為第一輪，斜紋區塊為 Loop 重複。未開 Loop 的軌道會維持最後姿勢；0 秒動畫或速度 0 顯示為持續的姿勢區塊。
-- 範圍可選 2／5／10／30 秒，播放時自動跟隨；左右箭頭可暫停並瀏覽前後時間。
+- 滾輪以游標位置為中心連續縮放（可見範圍 0.1–300 秒），也可按 −／+ 縮放；Fit 顯示各軌的一輪動畫。
+- 在軌道區拖曳可自由平移；Shift + 拖曳、中鍵拖曳、Shift + 滾輪或觸控板水平捲動也可平移。平移與縮放不改變播放時間、暫停狀態或動畫內容。
+- 手動平移或縮放會關閉 Follow，選軌和播放時不會將視窗拉回；按 Follow 恢復跟隨播放指針。
+- 所有介面、提示、錯誤與無障礙標籤均為英文。Play／Pause 使用 SVG 圖示。
 - 聚焦刻度後，左右鍵移動 1/30 秒，Shift + 左右键移動 1 秒，Home 回到 0 秒，End 到目前視窗結尾。
 - 較高軌道會覆蓋相同的關鍵幀屬性，未設關鍵幀的部位繼續使用低軌動畫。
 

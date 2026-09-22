@@ -41,7 +41,7 @@ import type { AssetCatalog } from './types';
   }
   async function openCatalog(next: AssetCatalog) {
     if (!next.skeletons.length)
-      throw Error('沒有找到骨架檔。請一起選取 .json 或 .skel、.atlas 和貼圖。');
+      throw Error('No skeleton found. Select a .json or .skel file with its .atlas and textures.');
     catalog = next;
     options($('skeletonSelect'), catalog.skeletons, (e) => e.path);
     options($('atlasSelect'), catalog.atlases, (e) => e.path);
@@ -127,7 +127,7 @@ import type { AssetCatalog } from './types';
     if (!count) {
       const p = document.createElement('p');
       p.className = 'empty-list';
-      p.textContent = '沒有符合的 Slot';
+      p.textContent = 'No matching slots';
       list.append(p);
     }
     $('slotCount').textContent = search ? `${count} / ${slots.length}` : String(slots.length);
@@ -149,7 +149,7 @@ import type { AssetCatalog } from './types';
     if (!animations.length) {
       const p = document.createElement('p');
       p.className = 'empty-list';
-      p.textContent = '此骨架沒有動畫';
+      p.textContent = 'This skeleton has no animations';
       list.append(p);
     }
   }
@@ -158,10 +158,14 @@ import type { AssetCatalog } from './types';
     const current = viewer.current();
     $('activeAnimation').textContent = `T${viewer.track} · ${current?.animation.name || 'Empty'}`;
     trackPanel.sync();
-    $('playPause').textContent = viewer.paused ? '▶' : 'Ⅱ';
-    $('playPause').setAttribute('aria-label', viewer.paused ? '播放' : '暫停');
+    $('playPausePath').setAttribute(
+      'd',
+      viewer.paused ? 'M7 3l14 9-14 9z' : 'M6 4h4v16H6zM14 4h4v16h-4z',
+    );
+    $('playPause').title = viewer.paused ? 'Play' : 'Pause';
+    $('playPause').setAttribute('aria-label', viewer.paused ? 'Play' : 'Pause');
     $('copySlot').disabled = !viewer.selectedSlot;
-    $('slotDetailText').textContent = viewer.selectedSlot || '選取 Slot，在畫面中標示';
+    $('slotDetailText').textContent = viewer.selectedSlot || 'Select a slot to highlight it';
     $('slotDetails').classList.toggle('has-selection', !!viewer.selectedSlot);
     for (const button of $('slotList').querySelectorAll<HTMLButtonElement>('[role=option]'))
       button.setAttribute('aria-selected', String(button.dataset.name === viewer.selectedSlot));
@@ -234,15 +238,18 @@ import type { AssetCatalog } from './types';
       field.select();
       const copied = document.execCommand('copy');
       field.remove();
-      if (!copied) throw Error('瀏覽器不允許複製，請從 Slot 清單讀取名稱。');
+      if (!copied) throw Error('Clipboard access denied. Read the name from the slot list.');
     }
-    toast('已複製 Slot 名稱');
+    toast('Slot name copied');
   });
   $('playPause').onclick = () => {
     viewer.paused = !viewer.paused;
     syncControls();
   };
-  $('restart').onclick = () => viewer.seekAll(0);
+  $('restart').onclick = () => {
+    viewer.seekAll(0);
+    trackPanel.reveal();
+  };
   $('setupPose').onclick = () => viewer.setup();
   $('loop').onchange = () => {
     viewer.setTrackLoop(viewer.track, $('loop').checked);
@@ -250,6 +257,7 @@ import type { AssetCatalog } from './types';
   $('speed').onchange = () => (viewer.speed = +$('speed').value);
   $('restartTracks').onclick = () => {
     viewer.restartAllTracks();
+    trackPanel.reveal();
     viewer.paused = false;
     syncControls();
   };

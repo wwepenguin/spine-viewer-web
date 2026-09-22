@@ -11,7 +11,7 @@ async function imageTexture(file: File, pma: boolean, linear: boolean, signal: A
   try {
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
-      image.onerror = () => reject(Error(`無法解碼貼圖：${file.name}`));
+      image.onerror = () => reject(Error(`Unable to decode texture: ${file.name}`));
       image.src = url;
     });
     if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
@@ -30,8 +30,8 @@ export async function load(
   atlasFile: AssetEntry | null | undefined,
   { pma = false, linear = true, signal = new AbortController().signal }: LoadOptions = {},
 ): Promise<SkeletonAsset> {
-  if (!skeleton) throw Error('請選取 JSON 或 SKEL 骨架檔。');
-  if (!atlasFile) throw Error('請選取與此骨架對應的 .atlas 圖集檔。');
+  if (!skeleton) throw Error('Select a JSON or SKEL skeleton file.');
+  if (!atlasFile) throw Error('Select the .atlas file matching this skeleton.');
   let atlas: TextureAtlas;
   const textures = new Set<PIXI.BaseTexture>();
   try {
@@ -58,7 +58,9 @@ export async function load(
               });
           },
           (value) =>
-            value ? resolve(value) : reject(Error('圖集載入失敗。請檢查頁面貼圖是否齊全。')),
+            value
+              ? resolve(value)
+              : reject(Error('Atlas loading failed. Check that all page textures are present.')),
         );
       } catch (err) {
         reject(err);
@@ -76,12 +78,12 @@ export async function load(
       try {
         parsed = JSON.parse(new TextDecoder().decode(raw).replace(/^\uFEFF/, ''));
       } catch {
-        throw Error('JSON 格式無法解析，請確認是 Spine 匯出的骨架資料。');
+        throw Error('Invalid JSON. Check that this is skeleton data exported from Spine.');
       }
       const version = (parsed as { skeleton?: { spine?: string } })?.skeleton?.spine;
       if (!version || !/^3\.[78]\.|^4\.[01]\./.test(version))
         throw Error(
-          `此骨架版本 ${version || '不明'} 不在 pixi-spine 3.1.2 的支援範圍內。請使用 Spine 3.8 素材。`,
+          `Skeleton version ${version || 'unknown'} is not supported by pixi-spine 3.1.2. Use Spine 3.8 assets.`,
         );
     } else {
       parsed = new Uint8Array(raw);
@@ -91,7 +93,7 @@ export async function load(
       spineData = parseSkeleton(atlas, parsed, binary);
     } catch (err) {
       throw Error(
-        `骨架解析失敗：${err instanceof Error ? err.message : String(err)}\n請確認骨架版本與圖集匹配（此工具主要驗證 Spine 3.8）。`,
+        `Skeleton parsing failed: ${err instanceof Error ? err.message : String(err)}\nCheck that the skeleton version and atlas match. This viewer is primarily tested with Spine 3.8.`,
       );
     }
     if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
@@ -113,7 +115,7 @@ export async function sample(): Promise<AssetCatalog> {
   const files = await Promise.all(
     ['spineboy.json', 'spineboy.atlas', 'spineboy.webp'].map(async (name) => {
       const response = await fetch(`${import.meta.env.BASE_URL}sample/${name}`);
-      if (!response.ok) throw Error(`範例載入失敗：${name} (${response.status})`);
+      if (!response.ok) throw Error(`Sample loading failed: ${name} (${response.status})`);
       return new File([await response.blob()], name);
     }),
   );

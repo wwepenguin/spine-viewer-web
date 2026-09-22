@@ -119,9 +119,10 @@ export class SkeletonViewer {
   }
   play(name: string, track = this.track) {
     if (!this.animationTracks) return;
-    if (!Number.isInteger(track) || track < 0 || track > 5) throw Error('Track 必須是 0 到 5。');
+    if (!Number.isInteger(track) || track < 0 || track > 5)
+      throw Error('Track must be between 0 and 5.');
     if (!this.asset.spineData.animations.some((a) => a.name === name))
-      throw Error(`找不到動畫：${name}`);
+      throw Error(`Animation not found: ${name}`);
     // Timeline clips share an origin. Editing the composition starts a fresh preview.
     this.timelineTime = 0;
     this.animationTracks.restartAll();
@@ -140,7 +141,8 @@ export class SkeletonViewer {
     this.drawHighlight();
   }
   setTrack(track: number) {
-    if (!Number.isInteger(track) || track < 0 || track > 5) throw Error('Track 必須是 0 到 5。');
+    if (!Number.isInteger(track) || track < 0 || track > 5)
+      throw Error('Track must be between 0 and 5.');
     this.track = track;
     this.onChange?.();
   }
@@ -199,7 +201,8 @@ export class SkeletonViewer {
     this.onChange?.();
   }
   selectSlot(name: string | null) {
-    if (name !== null && !this.model?.skeleton.findSlot(name)) throw Error(`找不到 Slot：${name}`);
+    if (name !== null && !this.model?.skeleton.findSlot(name))
+      throw Error(`Slot not found: ${name}`);
     this.selectedSlot = name;
     this.drawHighlight();
     this.onChange?.();
@@ -364,7 +367,8 @@ export class SkeletonViewer {
         .lineTo(cx, cy + 6 / scale);
     }
     this.marker.textContent =
-      this.selectedSlot + (geo.inactive ? ' · 未啟用骨骼' : !geo.attachment ? ' · 無附件' : '');
+      this.selectedSlot +
+      (geo.inactive ? ' · Inactive bone' : !geo.attachment ? ' · No attachment' : '');
     this.marker.hidden = false;
     const x = this.world.x + b.maxX * scale + 10,
       y = this.world.y + b.minY * scale - 28;

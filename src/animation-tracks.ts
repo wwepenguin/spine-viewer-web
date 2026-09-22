@@ -26,11 +26,11 @@ export class AnimationTracks {
   ) {}
   private validate(track: number) {
     if (!Number.isInteger(track) || track < 0 || track >= TRACK_COUNT)
-      throw Error('Track 必須是 0 到 5。');
+      throw Error('Track must be between 0 and 5.');
   }
   play(track: number, name: string, mix: number) {
     this.validate(track);
-    if (!this.animations.some((a) => a.name === name)) throw Error(`找不到動畫：${name}`);
+    if (!this.animations.some((a) => a.name === name)) throw Error(`Animation not found: ${name}`);
     this.model.state.data.defaultMix = mix;
     const settings = this.settings[track];
     const entry = this.model.state.setAnimation(track, name, settings.loop);

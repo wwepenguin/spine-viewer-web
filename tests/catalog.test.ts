@@ -19,8 +19,8 @@ test('atlas resolves its relative texture before duplicate basenames', () => {
 });
 test('ambiguous and missing texture names give actionable errors', () => {
   const data = catalog([file('a/page.webp'), file('b/page.webp')]);
-  assert.throws(() => resolvePage(data, 'hero.atlas', 'page.webp'), /重複/);
-  assert.throws(() => resolvePage(data, 'hero.atlas', 'missing.webp'), /缺少貼圖/);
+  assert.throws(() => resolvePage(data, 'hero.atlas', 'page.webp'), /Duplicate/);
+  assert.throws(() => resolvePage(data, 'hero.atlas', 'missing.webp'), /Missing texture/);
 });
 test('catalog supports binary, atlas.txt, Unicode and nested files', () => {
   const data = catalog([
