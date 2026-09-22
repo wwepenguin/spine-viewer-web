@@ -1,3 +1,4 @@
+import { AnimationTracks } from './animation-tracks';
 import {
   PIXI,
   createSpine,
@@ -22,7 +23,13 @@ export class SkeletonViewer {
   marker: HTMLElement;
   paused = false;
   speed = 1;
-  loop = true;
+  timelineTime = 0;
+  get loop() {
+    return this.trackSettings[this.track]?.loop ?? true;
+  }
+  set loop(value: boolean) {
+    this.animationTracks?.configure(this.track, { loop: value });
+  }
   selectedSlot: string | null = null;
   track = 0;
   mix = 0.2;
@@ -30,7 +37,10 @@ export class SkeletonViewer {
   // These are assigned atomically by setModel; all UI model actions follow successful loading.
   model!: RuntimeSpine;
   asset!: SkeletonAsset;
-  trackSettings: Array<{ alpha: number; additive: boolean }>;
+  animationTracks?: AnimationTracks;
+  get trackSettings() {
+    return this.animationTracks?.settings ?? [];
+  }
   debugFlags: DebugFlags = {};
   fitScale = 1;
   fittedBounds?: Bounds & { width: number; height: number };
@@ -43,7 +53,6 @@ export class SkeletonViewer {
     this.marker = marker;
     this.paused = false;
     this.speed = 1;
-    this.loop = true;
     this.selectedSlot = null;
     this.track = 0;
     this.mix = 0.2;
@@ -64,7 +73,6 @@ export class SkeletonViewer {
     this.highlight = new PIXI.Graphics();
     this.points = new PIXI.Graphics();
     this.world.addChild(this.axes);
-    this.trackSettings = Array.from({ length: 6 }, () => ({ alpha: 1, additive: false }));
     this.debugFlags = {};
     new ResizeObserver(() => {
       const w = mount.clientWidth,
@@ -92,6 +100,8 @@ export class SkeletonViewer {
     }
     this.asset = asset;
     this.model = next;
+    this.track = 0;
+    this.animationTracks = new AnimationTracks(next, asset.spineData.animations);
     this.selectedSlot = null;
     this.world.addChild(next);
     this.world.addChild(this.points);
@@ -107,15 +117,18 @@ export class SkeletonViewer {
   current() {
     return this.model?.state.getCurrent(this.track);
   }
-  play(name: string) {
+  play(name: string, track = this.track) {
+    if (!this.animationTracks) return;
+    if (!Number.isInteger(track) || track < 0 || track > 5) throw Error('Track 必須是 0 到 5。');
     if (!this.asset.spineData.animations.some((a) => a.name === name))
       throw Error(`找不到動畫：${name}`);
-    this.model.stateData.defaultMix = this.mix;
-    const entry = this.model.state.setAnimation(this.track, name, this.loop);
-    entry.alpha = this.trackSettings[this.track].alpha;
-    entry.mixBlend = this.track > 0 && this.trackSettings[this.track].additive ? 3 : 2;
+    // Timeline clips share an origin. Editing the composition starts a fresh preview.
+    this.timelineTime = 0;
+    this.animationTracks.restartAll();
+    const entry = this.animationTracks.play(track, name, this.mix);
+    this.track = track;
     this.paused = false;
-    this.model.update(0);
+    this.drawHighlight();
     this.onChange?.();
     return entry;
   }
@@ -129,24 +142,31 @@ export class SkeletonViewer {
   setTrack(track: number) {
     if (!Number.isInteger(track) || track < 0 || track > 5) throw Error('Track 必須是 0 到 5。');
     this.track = track;
-    const e = this.current();
-    if (e) this.loop = e.loop;
     this.onChange?.();
   }
   configureTrack(alpha: number, additive: boolean) {
-    this.trackSettings[this.track] = { alpha, additive };
-    const e = this.current();
-    if (e) {
-      e.alpha = alpha;
-      e.mixBlend = this.track > 0 && additive ? 3 : 2;
-      this.model.update(0);
-    }
+    this.animationTracks?.configure(this.track, { alpha, additive });
+    this.drawHighlight();
+    this.onChange?.();
   }
-  clearTrack() {
-    if (!this.model) return;
-    this.model.state.clearTrack(this.track);
-    this.model.skeleton.setToSetupPose();
-    this.model.update(0);
+  setTrackLoop(track: number, loop: boolean) {
+    this.animationTracks?.configure(track, { loop });
+    this.onChange?.();
+  }
+  setTrackSpeed(speed: number) {
+    this.animationTracks?.configure(this.track, { speed });
+    this.animationTracks?.seekAll(this.timelineTime);
+    this.onChange?.();
+  }
+  clearTrack(track = this.track) {
+    this.animationTracks?.clear(track);
+    this.drawHighlight();
+    this.onChange?.();
+  }
+  restartAllTracks() {
+    this.timelineTime = 0;
+    this.animationTracks?.restartAll();
+    this.drawHighlight();
     this.onChange?.();
   }
   setDebug(flags: DebugFlags) {
@@ -162,6 +182,7 @@ export class SkeletonViewer {
   setup() {
     if (!this.model) return;
     this.model.state.clearTracks();
+    this.timelineTime = 0;
     this.model.skeleton.setToSetupPose();
     this.model.update(0);
     this.paused = true;
@@ -169,29 +190,11 @@ export class SkeletonViewer {
   }
   seek(time: number) {
     if (!this.current()) return;
-    const values = this.model.state.tracks.map((e) =>
-      e
-        ? {
-            name: e.animation.name,
-            loop: e.loop,
-            time: e.trackTime,
-            alpha: e.alpha,
-            mixBlend: e.mixBlend,
-          }
-        : null,
-    );
-    this.model.state.clearTracks();
-    this.model.skeleton.setToSetupPose();
-    values.forEach((value, i) => {
-      if (value) {
-        const e = this.model.state.setAnimation(i, value.name, value.loop);
-        e.mixDuration = 0;
-        e.trackTime = i === this.track ? time : value.time;
-        e.alpha = value.alpha;
-        e.mixBlend = value.mixBlend;
-      }
-    });
-    this.model.update(0);
+    this.seekAll(time / (this.current()?.timeScale || 1));
+  }
+  seekAll(time: number) {
+    this.animationTracks?.seekAll(time);
+    this.timelineTime = time;
     this.drawHighlight();
     this.onChange?.();
   }
@@ -372,7 +375,10 @@ export class SkeletonViewer {
   }
   tick(dt: number) {
     if (!this.model) return;
-    if (!this.paused) this.model.update(dt * this.speed);
+    if (!this.paused && this.model.state.tracks.some(Boolean)) {
+      this.timelineTime += dt * this.speed;
+      this.model.update(dt * this.speed);
+    }
     this.drawHighlight();
     this.onTick?.();
   }
@@ -426,11 +432,21 @@ export class SkeletonViewer {
       selectedSlot: this.selectedSlot,
       animation: e?.animation.name || null,
       time: e?.trackTime || 0,
+      timelineTime: this.timelineTime,
       paused: this.paused,
       track: this.track,
       tracks:
         this.model?.state.tracks.map((e) =>
-          e ? { animation: e.animation.name, alpha: e.alpha, additive: e.mixBlend === 3 } : null,
+          e
+            ? {
+                animation: e.animation.name,
+                alpha: e.alpha,
+                additive: e.mixBlend === 3,
+                time: e.trackTime,
+                loop: e.loop,
+                speed: e.timeScale,
+              }
+            : null,
         ) || [],
       highlight: this.selectedSlot ? this.lastHighlight : null,
       zoom: this.zoom,

@@ -885,3 +885,260 @@ kbd {
     width: 224px;
   }
 }
+/* Bottom timeline shares the whole workspace width, as in a desktop animation editor. */
+.workspace {
+  grid-template-rows: minmax(140px, 1fr) 290px;
+}
+.timeline-dock {
+  grid-column: 1 / -1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #111a25;
+  border-top: 1px solid #42536a;
+}
+.timeline-toolbar {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  overflow-x: auto;
+  flex: none;
+}
+.timeline-toolbar h2 {
+  font-size: 13px;
+  white-space: nowrap;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-right: 8px;
+}
+.timeline-toolbar .play-button {
+  height: 30px;
+  width: 34px;
+  flex: none;
+}
+.timeline-toolbar .time {
+  min-width: 70px;
+  font-family: monospace;
+  color: #f69a8b;
+}
+.timeline-toolbar #activeAnimation {
+  max-width: 160px;
+}
+.timeline-toolbar .speed-control {
+  margin-left: auto;
+}
+.timeline-navigation {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+.timeline-navigation label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.timeline-navigation select {
+  width: 65px;
+  padding: 3px 5px;
+}
+.timeline-navigation button {
+  padding: 1px 8px;
+}
+.timeline-scroll {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  scrollbar-width: thin;
+}
+.timeline-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-rows: 25px 192px;
+  min-width: 730px;
+}
+.track-header {
+  font: 10px/25px monospace;
+  letter-spacing: 1px;
+  color: #a5b8cf;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: #172231;
+  display: flex;
+  justify-content: space-between;
+}
+.time-ruler {
+  position: relative;
+  overflow: hidden;
+  background: #121d2a;
+  border-bottom: 1px solid #45546b;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+}
+.time-ruler:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: -2px;
+}
+.time-ruler span {
+  position: absolute;
+  font: 10px/23px monospace;
+  color: #91a6bf;
+  border-left: 1px solid #49576a;
+  padding-left: 4px;
+  white-space: nowrap;
+}
+.time-ruler span:last-child {
+  transform: translateX(-100%);
+  border-left: 0;
+  padding-right: 4px;
+}
+.track-layers {
+  background: #172231;
+  border-right: 1px solid #45546b;
+}
+.track-layer {
+  height: 32px;
+  display: grid;
+  grid-template-columns: 35px minmax(0, 1fr) 24px 18px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-bottom: 1px solid #2b3748;
+}
+.track-layer.selected {
+  background: #213c38;
+  box-shadow: inset 3px 0 var(--mint);
+}
+.track-layer .track-index,
+.track-layer .track-clear {
+  padding: 2px;
+  font-size: 11px;
+  border-radius: 3px;
+  height: 24px;
+}
+.track-layer select {
+  padding: 2px 18px 2px 5px;
+  font-size: 11px;
+  height: 24px;
+  border-radius: 3px;
+}
+.track-layer input {
+  margin: 0;
+}
+.timeline-lanes {
+  position: relative;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  background-image: linear-gradient(90deg, #34425688 1px, transparent 1px);
+  background-size: 10% 100%;
+}
+.timeline-lane {
+  position: relative;
+  height: 32px;
+  border-bottom: 1px solid #2b3748;
+  overflow: hidden;
+}
+.timeline-lane.selected {
+  background-color: #68e3c409;
+}
+.animation-clip {
+  position: absolute;
+  top: 5px;
+  height: 22px;
+  background: #286b72;
+  border: 1px solid #5db8bd;
+  border-radius: 3px;
+  padding: 2px 7px;
+  color: #d1ffff;
+  font: 10px/16px monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.timeline-lane.selected .animation-clip {
+  background-color: #258b82;
+  border-color: #8cf8df;
+}
+.animation-clip.repeated {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 6px,
+    #ffffff08 6px,
+    #ffffff08 9px
+  );
+  opacity: 0.75;
+}
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #ff8f7e;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 0 5px #ff8f7e66;
+}
+.playhead[hidden] {
+  display: none;
+}
+.playhead span {
+  position: absolute;
+  top: 0;
+  left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid #ff8f7e;
+}
+.timeline-help {
+  padding: 4px 12px;
+  color: #8093ad;
+  font-size: 10px;
+  border-top: 1px solid var(--line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: none;
+}
+.track-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-bottom: 9px;
+}
+.track-hint strong {
+  color: var(--mint);
+}
+@media (max-width: 1000px) {
+  .timeline-toolbar #activeAnimation,
+  .timeline-toolbar .loop-label {
+    display: none;
+  }
+}
+@media (max-height: 640px) {
+  .workspace {
+    grid-template-rows: minmax(120px, 1fr) 230px;
+  }
+}
+@media (max-width: 720px) {
+  .timeline-toolbar {
+    gap: 8px;
+    padding: 6px 10px;
+  }
+  .timeline-toolbar h2 .count,
+  #restartTracks {
+    display: none;
+  }
+  .timeline-grid {
+    grid-template-columns: 240px minmax(0, 1fr);
+    min-width: 680px;
+  }
+}

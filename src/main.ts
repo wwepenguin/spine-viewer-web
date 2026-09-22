@@ -1,3 +1,4 @@
+import { TrackPanel } from './track-panel';
 import './styles.css';
 import { $ } from './dom';
 import * as SpineIO from './assets';
@@ -155,7 +156,8 @@ import type { AssetCatalog } from './types';
   function syncControls() {
     if (!viewer) return;
     const current = viewer.current();
-    $('activeAnimation').textContent = current?.animation.name || 'Setup pose';
+    $('activeAnimation').textContent = `T${viewer.track} · ${current?.animation.name || 'Empty'}`;
+    trackPanel.sync();
     $('playPause').textContent = viewer.paused ? '▶' : 'Ⅱ';
     $('playPause').setAttribute('aria-label', viewer.paused ? '播放' : '暫停');
     $('copySlot').disabled = !viewer.selectedSlot;
@@ -165,33 +167,18 @@ import type { AssetCatalog } from './types';
       button.setAttribute('aria-selected', String(button.dataset.name === viewer.selectedSlot));
     for (const button of $('animationList').querySelectorAll<HTMLButtonElement>('[role=option]'))
       button.setAttribute('aria-selected', String(button.dataset.name === current?.animation.name));
-    for (const button of $('tracks').querySelectorAll('button')) {
-      const track = +(button.dataset.track || 0);
-      button.setAttribute('aria-pressed', String(track === viewer.track));
-      button.classList.toggle('has-animation', !!viewer.model?.state.getCurrent(track));
-    }
-    const settings = viewer.trackSettings[viewer.track];
+    const settings = viewer.trackSettings[viewer.track] ?? {
+      alpha: 1,
+      additive: false,
+      loop: true,
+      speed: 1,
+    };
+    if (document.activeElement !== $('trackSpeed')) $('trackSpeed').value = String(settings.speed);
     $('trackAlpha').value = String(settings.alpha);
     $('alphaValue').textContent = Math.round(settings.alpha * 100) + '%';
     $('additive').checked = settings.additive;
     $('additive').disabled = viewer.track === 0;
     $('loop').checked = viewer.loop;
-    updateTimeline();
-  }
-  function updateTimeline() {
-    const entry = viewer.current(),
-      duration = entry?.animation.duration || 0;
-    const time =
-      duration && entry
-        ? entry.loop
-          ? entry.trackTime % duration
-          : Math.min(entry.trackTime, duration)
-        : 0;
-    $('timeline').max = String(duration || 1);
-    $('timeline').value = String(time);
-    $('timeline').disabled = !duration;
-    $('currentTime').textContent = time.toFixed(2);
-    $('duration').textContent = duration.toFixed(2) + ' s';
   }
   const safe =
     <Args extends unknown[]>(fn: (...args: Args) => unknown) =>
@@ -205,8 +192,11 @@ import type { AssetCatalog } from './types';
     error(err);
     return;
   }
+  const trackPanel = new TrackPanel(viewer);
   viewer.onChange = syncControls;
-  viewer.onTick = updateTimeline;
+  viewer.onTick = () => {
+    trackPanel.tick();
+  };
   viewer.onViewChange = () => {
     $('zoom').value = String(Math.round(viewer.zoom * 100));
     $('zoomValue').textContent = Math.round(viewer.zoom * 100) + '%';
@@ -252,15 +242,25 @@ import type { AssetCatalog } from './types';
     viewer.paused = !viewer.paused;
     syncControls();
   };
-  $('restart').onclick = () => viewer.seek(0);
+  $('restart').onclick = () => viewer.seekAll(0);
   $('setupPose').onclick = () => viewer.setup();
   $('loop').onchange = () => {
-    viewer.loop = $('loop').checked;
-    if (viewer.current()) viewer.current()!.loop = viewer.loop;
+    viewer.setTrackLoop(viewer.track, $('loop').checked);
   };
   $('speed').onchange = () => (viewer.speed = +$('speed').value);
-  for (const button of $('tracks').querySelectorAll('button'))
-    button.onclick = () => viewer.setTrack(+(button.dataset.track || 0));
+  $('restartTracks').onclick = () => {
+    viewer.restartAllTracks();
+    viewer.paused = false;
+    syncControls();
+  };
+  $('trackSpeed').oninput = () => {
+    const input = $('trackSpeed');
+    if (input.value !== '' && input.validity.valid) viewer.setTrackSpeed(Number(input.value));
+  };
+  $('trackSpeed').onchange = () => {
+    viewer.setTrackSpeed(Math.max(0, Math.min(3, Number($('trackSpeed').value) || 0)));
+    $('trackSpeed').value = String(viewer.trackSettings[viewer.track]?.speed ?? 1);
+  };
   $('mix').onchange = () => {
     viewer.mix = Math.max(0, Math.min(4, Number($('mix').value) || 0));
     $('mix').value = String(viewer.mix);
@@ -279,10 +279,6 @@ import type { AssetCatalog } from './types';
         ]),
       ),
     );
-  $('timeline').oninput = () => {
-    viewer.paused = true;
-    viewer.seek(+$('timeline').value);
-  };
   $('fitButton').onclick = () => viewer.fit();
   $('zoom').oninput = () => viewer.setZoom(+$('zoom').value / 100);
   for (const axis of ['X', 'Y'] as const)

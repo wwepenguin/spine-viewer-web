@@ -1,4 +1,8 @@
 export interface Elements {
+  trackCount: HTMLElement;
+  selectedTrack: HTMLElement;
+  restartTracks: HTMLButtonElement;
+  trackSpeed: HTMLInputElement;
   panelToggle: HTMLButtonElement;
   sampleButton: HTMLButtonElement;
   folderButton: HTMLButtonElement;
@@ -64,8 +68,12 @@ export interface Elements {
   rendererInfo: HTMLElement;
   performanceToggle: HTMLButtonElement;
   currentTime: HTMLElement;
-  timeline: HTMLInputElement;
-  duration: HTMLElement;
+  timeRuler: HTMLElement;
+  timelineLanes: HTMLElement;
+  playhead: HTMLElement;
+  timeWindow: HTMLSelectElement;
+  previousTime: HTMLButtonElement;
+  nextTime: HTMLButtonElement;
   restart: HTMLButtonElement;
   playPause: HTMLButtonElement;
   loop: HTMLInputElement;

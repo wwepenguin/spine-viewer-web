@@ -106,17 +106,9 @@
             <h2>Animations</h2>
             <span id="animationCount" class="count">0</span>
           </div>
-          <div class="track-row">
-            <span>Track</span>
-            <div id="tracks" class="track-buttons" role="group" aria-label="動畫軌道">
-              <button data-track="0" aria-pressed="true">0</button
-              ><button data-track="1" aria-pressed="false">1</button
-              ><button data-track="2" aria-pressed="false">2</button
-              ><button data-track="3" aria-pressed="false">3</button
-              ><button data-track="4" aria-pressed="false">4</button
-              ><button data-track="5" aria-pressed="false">5</button>
-            </div>
-          </div>
+          <p class="track-hint">
+            套用至 <strong id="selectedTrack">Track 0</strong>；在下方時間軸選取軌道。
+          </p>
           <div
             id="animationList"
             class="item-list animation-list"
@@ -125,7 +117,13 @@
             tabindex="0"
           ></div>
           <details class="advanced">
-            <summary>混合設定</summary>
+            <summary>所選軌道設定</summary>
+            <div class="mix-row">
+              <label for="trackSpeed">軌道速度</label
+              ><input id="trackSpeed" type="number" min="0" max="3" step="0.25" value="1" /><span
+                >×</span
+              >
+            </div>
             <div class="mix-row">
               <label for="mix">切換混合</label
               ><input id="mix" type="number" min="0" max="4" step="0.05" value="0.2" /><span
@@ -297,40 +295,64 @@
             </div>
           </div>
         </div>
-        <footer class="transport">
-          <div class="timeline-row">
-            <span id="currentTime" class="time">0.00</span
-            ><input
-              id="timeline"
-              aria-label="動畫時間"
-              type="range"
-              min="0"
-              max="1"
-              step="0.001"
-              value="0"
-            /><span id="duration" class="time">0.00 s</span>
-          </div>
-          <div class="playback-row">
-            <div class="playback-main">
-              <button id="restart" class="icon-button" aria-label="從頭播放">↺</button
-              ><button id="playPause" class="play-button" aria-label="暫停">Ⅱ</button
-              ><label class="loop-label"><input id="loop" type="checkbox" checked />循環</label
-              ><span id="activeAnimation">—</span>
-            </div>
-            <label class="speed-control"
-              >速度
-              <select id="speed" aria-label="播放速度">
-                <option value="0.25">0.25×</option>
-                <option value="0.5">0.5×</option>
-                <option value="0.75">0.75×</option>
-                <option value="1" selected>1×</option>
-                <option value="1.5">1.5×</option>
-                <option value="2">2×</option>
-                <option value="3">3×</option>
+      </section>
+      <section class="timeline-dock" aria-label="多軌時間軸">
+        <div class="timeline-toolbar">
+          <h2>Multi-track <span id="trackCount" class="count">0 active</span></h2>
+          <button id="restart" class="icon-button" aria-label="全部軌道回到開頭">↺</button>
+          <button id="playPause" class="play-button" aria-label="暫停">Ⅱ</button>
+          <output id="currentTime" class="time">0.00 s</output>
+          <button id="restartTracks" class="text-button">全部重播</button>
+          <label class="loop-label"><input id="loop" type="checkbox" checked />所選軌道 Loop</label>
+          <span id="activeAnimation">—</span>
+          <label class="speed-control"
+            >速度
+            <select id="speed" aria-label="播放速度">
+              <option value="0.25">0.25×</option>
+              <option value="0.5">0.5×</option>
+              <option value="0.75">0.75×</option>
+              <option value="1" selected>1×</option>
+              <option value="1.5">1.5×</option>
+              <option value="2">2×</option>
+              <option value="3">3×</option>
+            </select></label
+          >
+          <div class="timeline-navigation">
+            <button id="previousTime" aria-label="上一段時間">‹</button>
+            <label
+              >範圍
+              <select id="timeWindow" aria-label="時間軸顯示範圍">
+                <option value="2">2 s</option>
+                <option value="5" selected>5 s</option>
+                <option value="10">10 s</option>
+                <option value="30">30 s</option>
               </select></label
             >
+            <button id="nextTime" aria-label="下一段時間">›</button>
           </div>
-        </footer>
+        </div>
+        <div class="timeline-scroll">
+          <div class="timeline-grid">
+            <div class="track-header">TRACK / ANIMATION <span>LOOP</span></div>
+            <div
+              id="timeRuler"
+              class="time-ruler"
+              role="slider"
+              tabindex="0"
+              aria-label="多軌播放時間"
+              aria-valuemin="0"
+              aria-valuemax="5"
+              aria-valuenow="0"
+            ></div>
+            <div id="tracks" class="track-layers" role="group" aria-label="動畫軌道"></div>
+            <div id="timelineLanes" class="timeline-lanes">
+              <div id="playhead" class="playhead"><span></span></div>
+            </div>
+          </div>
+        </div>
+        <p class="timeline-help">
+          拖曳刻度或動畫區塊可同步定位所有軌道 · 選擇動畫後從頭預覽 · 較高軌道覆蓋相同的關鍵幀屬性
+        </p>
       </section>
     </main>
     <div id="toast" class="toast" role="status" hidden></div>
