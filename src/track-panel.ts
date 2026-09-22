@@ -231,11 +231,12 @@ export class TrackPanel {
       if (!entry) return;
       const duration = entry.animation.duration;
       const period = entry.timeScale > 0 ? duration / entry.timeScale : 0;
-      const label = `${entry.animation.name} · ${duration.toFixed(2)}s${entry.loop ? ' ↻' : ''}${entry.timeScale !== 1 ? ` · ${entry.timeScale}×` : ''}`;
+      const label = `${entry.animation.name} · ${duration.toFixed(2)}s${entry.loop ? ' · ↻ Loop' : ''}${entry.timeScale !== 1 ? ` · ${entry.timeScale}×` : ''}`;
       row.lane.title = label;
-      const clip = (start: number, end: number, repeat = false) => {
+      const clip = (start: number, end: number) => {
         const block = document.createElement('span');
-        block.className = `animation-clip${repeat ? ' repeated' : ''}`;
+        block.className = 'animation-clip';
+        block.title = label;
         block.textContent = label;
         block.style.left = `${Math.max(0, ((start - this.page) / this.span) * 100)}%`;
         block.style.width = `${Math.max(0, ((Math.min(end, this.page + this.span) - Math.max(start, this.page)) / this.span) * 100)}%`;
@@ -243,17 +244,6 @@ export class TrackPanel {
       };
       if (period <= 0) {
         clip(this.page, this.page + this.span);
-      } else if (entry.loop) {
-        // Tiny animation cycles use a single striped bar instead of thousands of DOM nodes.
-        if (this.span / period > 100) clip(this.page, this.page + this.span, true);
-        else
-          for (
-            let cycle = Math.floor(this.page / period);
-            cycle * period < this.page + this.span;
-            cycle++
-          ) {
-            clip(cycle * period, (cycle + 1) * period, cycle > 0);
-          }
       } else if (period > this.page) clip(0, period);
     });
   }

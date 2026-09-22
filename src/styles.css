@@ -1067,16 +1067,7 @@ kbd {
   background-color: #258b82;
   border-color: #8cf8df;
 }
-.animation-clip.repeated {
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent,
-    transparent 6px,
-    #ffffff08 6px,
-    #ffffff08 9px
-  );
-  opacity: 0.75;
-}
+
 .playhead {
   position: absolute;
   top: 0;
