@@ -1,4 +1,8 @@
 export interface Elements {
+  previousFrame: HTMLButtonElement;
+  nextFrame: HTMLButtonElement;
+  stepFps: HTMLSelectElement;
+  frameCounter: HTMLElement;
   sequenceDialog: HTMLDialogElement;
   sequenceTitle: HTMLElement;
   sequenceInfo: HTMLElement;

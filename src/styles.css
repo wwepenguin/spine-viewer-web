@@ -1306,3 +1306,29 @@ kbd {
   background-color: #39597b;
   border-color: #7ba0c7;
 }
+.frame-button {
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 30px;
+  padding: 4px;
+  flex: none;
+}
+.frame-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  pointer-events: none;
+}
+.frame-counter {
+  font: 11px monospace;
+  color: var(--mint);
+  min-width: 43px;
+  white-space: nowrap;
+}
+.step-fps {
+  width: 79px;
+  padding: 4px 5px;
+  font-size: 11px;
+  flex: none;
+}

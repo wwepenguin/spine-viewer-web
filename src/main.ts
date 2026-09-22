@@ -249,6 +249,13 @@ import type { AssetCatalog } from './types';
     viewer.paused = !viewer.paused;
     syncControls();
   };
+  const stepFrame = (direction: -1 | 1) => {
+    viewer.stepFrame(direction, Number($('stepFps').value));
+    trackPanel.ensureVisible();
+  };
+  $('previousFrame').onclick = () => stepFrame(-1);
+  $('nextFrame').onclick = () => stepFrame(1);
+  $('stepFps').onchange = () => trackPanel.tick(true);
   $('restart').onclick = () => {
     viewer.seekAll(0);
     trackPanel.reveal();
@@ -306,6 +313,21 @@ import type { AssetCatalog } from './types';
     $('panelToggle').setAttribute('aria-expanded', String($('sidebar').classList.contains('open')));
   };
   window.addEventListener('keydown', (event) => {
+    if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (
+      $('sequenceDialog').open ||
+      (event.target instanceof Element &&
+        event.target.closest(
+          'input,select,textarea,[contenteditable]:not([contenteditable="false"])',
+        ))
+    )
+      return;
+    if (['<', '>', ',', '.'].includes(event.key)) {
+      event.preventDefault();
+      stepFrame(event.key === '<' || event.key === ',' ? -1 : 1);
+      return;
+    }
+
     if (
       event.target instanceof Element &&
       event.target.closest('input,select,textarea,button,[role=listbox]')

@@ -173,8 +173,15 @@ export class TrackPanel {
     }
     $('timeRuler').onkeydown = (event) => {
       let time = viewer.timelineTime;
-      if (event.key === 'ArrowLeft') time -= event.shiftKey ? 1 : 1 / 30;
-      else if (event.key === 'ArrowRight') time += event.shiftKey ? 1 : 1 / 30;
+      if (!event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+        event.preventDefault();
+        this.follow = false;
+        viewer.stepFrame(event.key === 'ArrowLeft' ? -1 : 1, Number($('stepFps').value));
+        this.ensureVisible();
+        return;
+      }
+      if (event.key === 'ArrowLeft') time -= 1;
+      else if (event.key === 'ArrowRight') time += 1;
       else if (event.key === 'Home') time = 0;
       else if (event.key === 'End') time = this.page + this.span;
       else return;
@@ -220,6 +227,10 @@ export class TrackPanel {
     $('restartTracks').disabled = !active;
     this.render();
     this.tick(true);
+  }
+  ensureVisible() {
+    if (this.viewer.timelineTime < this.page || this.viewer.timelineTime > this.page + this.span)
+      this.reveal();
   }
   reveal() {
     this.view.reveal(this.viewer.timelineTime);
@@ -307,7 +318,11 @@ export class TrackPanel {
     const now = performance.now();
     if (force || now - this.lastText > 80) {
       this.lastText = now;
-      $('currentTime').textContent = `${time.toFixed(2)} s`;
+      $('currentTime').textContent = `${time.toFixed(3)} s`;
+      $('frameCounter').textContent = `F ${Math.round(time * Number($('stepFps').value))}`;
+      const hasAnimation = !!this.viewer.animationTracks?.sequences.some((clips) => clips.length);
+      $('previousFrame').disabled = !hasAnimation;
+      $('nextFrame').disabled = !hasAnimation;
       $('activeAnimation').textContent =
         `T${this.viewer.track} · ${this.viewer.current()?.animation.name || 'Empty'}`;
       $('timeRuler').setAttribute('aria-valuenow', String(time));

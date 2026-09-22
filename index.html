@@ -301,11 +301,39 @@
         <div class="timeline-toolbar">
           <h2>Multi-track <span id="trackCount" class="count">0 active</span></h2>
           <button id="restart" class="icon-button" aria-label="Rewind all tracks">↺</button>
+          <button
+            id="previousFrame"
+            class="frame-button"
+            aria-label="Previous frame"
+            title="Previous frame (< or ,)"
+            aria-keyshortcuts="&lt; ,"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M5 4h3v16H5zM19 4L9 12l10 8z" />
+            </svg>
+          </button>
           <button id="playPause" class="play-button" aria-label="Pause" title="Pause">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path id="playPausePath" d="M6 4h4v16H6zM14 4h4v16h-4z" />
             </svg>
           </button>
+          <button
+            id="nextFrame"
+            class="frame-button"
+            aria-label="Next frame"
+            title="Next frame (> or .)"
+            aria-keyshortcuts="&gt; ."
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M16 4h3v16h-3zM5 4l10 8-10 8z" />
+            </svg>
+          </button>
+          <output id="frameCounter" class="frame-counter" aria-label="Current frame">F 0</output>
+          <select id="stepFps" class="step-fps" aria-label="Frame step FPS" title="Frame step FPS">
+            <option value="24">24 FPS</option>
+            <option value="30" selected>30 FPS</option>
+            <option value="60">60 FPS</option>
+          </select>
           <output id="currentTime" class="time">0.00 s</output>
           <button id="restartTracks" class="text-button">Restart all</button>
           <label class="loop-label"><input id="loop" type="checkbox" checked />Selected loop</label>
@@ -352,8 +380,8 @@
           </div>
         </div>
         <p class="timeline-help">
-          Click + to edit a sequence · Double-click a clip to edit · Scroll to zoom · Drag tracks to
-          pan · Drag ruler or playhead to scrub · Shift + drag / middle drag to pan
+          &lt; / &gt;: previous / next frame · Click + to edit a sequence · Scroll to zoom · Drag
+          tracks to pan · Drag ruler or playhead to scrub · Shift + drag / middle drag to pan
         </p>
       </section>
     </main>

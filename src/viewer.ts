@@ -1,3 +1,4 @@
+import { stepFrameTime } from './frame-step';
 import { AnimationTracks, type AnimationClip } from './animation-tracks';
 import {
   PIXI,
@@ -207,6 +208,12 @@ export class SkeletonViewer {
     this.timelineTime = time;
     this.drawHighlight();
     this.onChange?.();
+  }
+  stepFrame(direction: -1 | 1, fps = 30) {
+    if (!this.animationTracks || !this.animationTracks.sequences.some((clips) => clips.length))
+      return;
+    this.paused = true;
+    this.seekAll(stepFrameTime(this.timelineTime, direction, fps, this.animationTracks.duration));
   }
   selectSlot(name: string | null) {
     if (name !== null && !this.model?.skeleton.findSlot(name))
