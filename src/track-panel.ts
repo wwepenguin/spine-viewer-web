@@ -31,6 +31,7 @@ export class TrackPanel {
     const animation = document.createElement('select');
     animation.setAttribute('aria-label', `Track ${index} animation`);
     animation.onchange = () => {
+      if (animation.value === '__sequence__') return;
       if (animation.value) this.viewer.play(animation.value, index);
       else this.viewer.clearTrack(index);
     };
@@ -45,16 +46,36 @@ export class TrackPanel {
     loop.type = 'checkbox';
     loop.setAttribute('aria-label', `Track ${index} Loop`);
     loop.onchange = () => this.viewer.setTrackLoop(index, loop.checked);
-    row.append(selectTrack, animation, clear, loop);
+    const sequence = document.createElement('button');
+    sequence.type = 'button';
+    sequence.className = 'track-clear';
+    sequence.textContent = '+';
+    sequence.title = 'Edit animation sequence';
+    sequence.setAttribute('aria-label', `Edit Track ${index} sequence`);
+    sequence.onclick = () => this.openSequence(index);
+    row.append(selectTrack, animation, sequence, clear, loop);
     const lane = document.createElement('div');
     lane.className = 'timeline-lane';
     lane.dataset.track = String(index);
     lane.setAttribute('aria-label', `Track ${index} clips`);
     return { row, selectTrack, animation, clear, loop, lane };
   });
-  constructor(private readonly viewer: SkeletonViewer) {
+  constructor(
+    private readonly viewer: SkeletonViewer,
+    private readonly openSequence: (track: number) => void,
+  ) {
     $('tracks').replaceChildren(...this.rows.map((row) => row.row));
     $('timelineLanes').prepend(...this.rows.map((row) => row.lane));
+    $('timelineLanes').ondblclick = (event) => {
+      // Pointer capture for panning can retarget clicks to the lane container.
+      const lane =
+        (event.target as Element).closest<HTMLElement>('[data-track]') ??
+        this.rows.find(({ lane }) => {
+          const rect = lane.getBoundingClientRect();
+          return event.clientY >= rect.top && event.clientY < rect.bottom;
+        })?.lane;
+      if (lane) this.openSequence(Number(lane.dataset.track));
+    };
     const updateView = () => {
       this.render();
       this.tick(true);
@@ -79,11 +100,10 @@ export class TrackPanel {
       updateView();
     };
     $('fitTime').onclick = () => {
-      const durations =
-        viewer.model?.state.tracks.map((entry) =>
-          entry && entry.timeScale > 0 ? entry.animation.duration / entry.timeScale : 0,
-        ) ?? [];
-      this.view.span = Math.max(0.1, Math.min(300, Math.max(1, ...durations) * 1.1));
+      this.view.span = Math.max(
+        0.1,
+        Math.min(300, Math.max(1, viewer.animationTracks?.duration ?? 0) * 1.1),
+      );
       this.page = 0;
       this.follow = false;
       updateView();
@@ -131,7 +151,7 @@ export class TrackPanel {
           viewer.paused = true;
           seek(event);
         }
-        this.render();
+        $('followTime').setAttribute('aria-pressed', 'false');
       };
       surface.onpointermove = (event) => {
         if (!gesture || !surface.hasPointerCapture(event.pointerId)) return;
@@ -186,7 +206,11 @@ export class TrackPanel {
       row.row.classList.toggle('selected', selected);
       row.lane.classList.toggle('selected', selected);
       row.selectTrack.setAttribute('aria-pressed', String(selected));
-      row.animation.value = entry?.animation.name || '';
+      const clips = this.viewer.animationTracks?.sequences[index] ?? [];
+      row.animation.querySelector('option[value="__sequence__"]')?.remove();
+      if (clips.length > 1)
+        row.animation.add(new Option(`Sequence (${clips.length})`, '__sequence__'));
+      row.animation.value = clips.length > 1 ? '__sequence__' : clips[0]?.name || '';
       row.animation.disabled = !this.asset?.spineData.animations.length;
       row.clear.disabled = !entry;
       row.loop.checked = this.viewer.trackSettings[index]?.loop ?? true;
@@ -229,22 +253,41 @@ export class TrackPanel {
       const entry = this.viewer.model?.state.getCurrent(index);
       row.lane.removeAttribute('title');
       if (!entry) return;
-      const duration = entry.animation.duration;
-      const period = entry.timeScale > 0 ? duration / entry.timeScale : 0;
-      const label = `${entry.animation.name} · ${duration.toFixed(2)}s${entry.loop ? ' · ↻ Loop' : ''}${entry.timeScale !== 1 ? ` · ${entry.timeScale}×` : ''}`;
-      row.lane.title = label;
-      const clip = (start: number, end: number) => {
+      const schedule = this.viewer.animationTracks?.layout(index) ?? [];
+      const speed = this.viewer.trackSettings[index].speed;
+      const scale = speed > 0 ? speed : 1;
+      schedule.forEach((clip, clipIndex) => {
+        const start = clip.start / scale;
+        const end = clip.end / scale;
+        if (end < this.page || start > this.page + this.span) return;
+        const label = `${clip.name} · ${clip.duration.toFixed(2)}s${this.viewer.trackSettings[index].loop && clipIndex === schedule.length - 1 ? ' · ↻ Loop' : ''}`;
         const block = document.createElement('span');
         block.className = 'animation-clip';
-        block.title = label;
-        block.textContent = label;
-        block.style.left = `${Math.max(0, ((start - this.page) / this.span) * 100)}%`;
-        block.style.width = `${Math.max(0, ((Math.min(end, this.page + this.span) - Math.max(start, this.page)) / this.span) * 100)}%`;
+        block.dataset.clip = String(clipIndex);
+        block.title = `${label} · Mix in ${clip.mixIn.toFixed(2)}s`;
+        const name = document.createElement('span');
+        name.className = 'clip-label';
+        name.textContent = label;
+        block.append(name);
+        block.classList.toggle('alternate', clipIndex % 2 === 1);
+        const visibleStart = Math.max(start, this.page);
+        block.style.left = `${((visibleStart - this.page) / this.span) * 100}%`;
+        block.style.width = `${Math.max(0, ((Math.min(end, this.page + this.span) - visibleStart) / this.span) * 100)}%`;
+        if (clip.duration === 0) block.classList.add('pose-clip');
         row.lane.append(block);
-      };
-      if (period <= 0) {
-        clip(this.page, this.page + this.span);
-      } else if (period > this.page) clip(0, period);
+        if (clip.mixIn > 0) {
+          const mixEnd = Math.min((clip.start + clip.mixIn) / scale, this.page + this.span);
+          if (mixEnd > visibleStart) {
+            const mix = document.createElement('span');
+            mix.className = 'mix-region';
+            mix.setAttribute('aria-label', `Mix in ${clip.mixIn.toFixed(2)} seconds`);
+            mix.title = `${clip.name}: Mix in ${clip.mixIn.toFixed(2)}s`;
+            mix.style.left = `${((visibleStart - this.page) / this.span) * 100}%`;
+            mix.style.width = `${((mixEnd - visibleStart) / this.span) * 100}%`;
+            row.lane.append(mix);
+          }
+        }
+      });
     });
   }
   tick(force = false) {
@@ -265,6 +308,8 @@ export class TrackPanel {
     if (force || now - this.lastText > 80) {
       this.lastText = now;
       $('currentTime').textContent = `${time.toFixed(2)} s`;
+      $('activeAnimation').textContent =
+        `T${this.viewer.track} · ${this.viewer.current()?.animation.name || 'Empty'}`;
       $('timeRuler').setAttribute('aria-valuenow', String(time));
       $('timeRuler').setAttribute('aria-valuetext', `${time.toFixed(2)} seconds`);
     }

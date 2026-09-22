@@ -1,4 +1,4 @@
-import { AnimationTracks } from './animation-tracks';
+import { AnimationTracks, type AnimationClip } from './animation-tracks';
 import {
   PIXI,
   createSpine,
@@ -133,6 +133,13 @@ export class SkeletonViewer {
     this.onChange?.();
     return entry;
   }
+  setSequence(clips: AnimationClip[], track = this.track) {
+    this.animationTracks?.setSequence(track, clips);
+    this.track = track;
+    this.timelineTime = 0;
+    this.drawHighlight();
+    this.onChange?.();
+  }
   setSkin(name: string) {
     if (!this.model) return;
     this.model.skeleton.setSkinByName(name);
@@ -183,6 +190,7 @@ export class SkeletonViewer {
   }
   setup() {
     if (!this.model) return;
+    this.animationTracks = new AnimationTracks(this.model, this.asset.spineData.animations);
     this.model.state.clearTracks();
     this.timelineTime = 0;
     this.model.skeleton.setToSetupPose();
@@ -441,6 +449,8 @@ export class SkeletonViewer {
       animation: e?.animation.name || null,
       time: e?.trackTime || 0,
       timelineTime: this.timelineTime,
+      sequences: this.animationTracks?.sequences ?? [],
+      sequenceDuration: this.animationTracks?.duration ?? 0,
       paused: this.paused,
       track: this.track,
       tracks:

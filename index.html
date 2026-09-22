@@ -126,7 +126,7 @@
               >
             </div>
             <div class="mix-row">
-              <label for="mix">Mix duration</label
+              <label for="mix">Default mix in</label
               ><input id="mix" type="number" min="0" max="4" step="0.05" value="0.2" /><span
                 >s</span
               >
@@ -352,11 +352,34 @@
           </div>
         </div>
         <p class="timeline-help">
-          Scroll to zoom · Drag tracks to pan · Drag ruler or playhead to scrub · Shift + drag /
-          middle drag to pan
+          Click + to edit a sequence · Double-click a clip to edit · Scroll to zoom · Drag tracks to
+          pan · Drag ruler or playhead to scrub · Shift + drag / middle drag to pan
         </p>
       </section>
     </main>
+    <dialog id="sequenceDialog" class="sequence-dialog" aria-labelledby="sequenceTitle">
+      <div class="sequence-heading">
+        <h2 id="sequenceTitle">Track sequence</h2>
+        <button id="closeSequence" aria-label="Close sequence editor">×</button>
+      </div>
+      <p id="sequenceInfo" class="count"></p>
+      <div class="sequence-labels">
+        <span>#</span><span>Animation</span><span>Mix in (s)</span><span>Order / remove</span>
+      </div>
+      <div id="sequenceList" class="sequence-list"></div>
+      <div class="sequence-add">
+        <select id="sequenceAnimation" aria-label="Add animation"></select
+        ><button id="addSequenceClip" class="primary">+ Add clip</button>
+      </div>
+      <p class="sequence-note">
+        Mix in overlaps the previous clip. Values are limited to the available clip lengths to avoid
+        three-way overlaps. The first clip starts at 0 without a mix.
+      </p>
+      <p class="sequence-note">
+        Changes restart the preview at 0. Loop repeats the complete preview; shorter sequences hold
+        their final pose until the preview restarts.
+      </p>
+    </dialog>
     <div id="toast" class="toast" role="status" hidden></div>
   </body>
 </html>

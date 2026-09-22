@@ -1,3 +1,4 @@
+import { SequenceEditor } from './sequence-editor';
 import { TrackPanel } from './track-panel';
 import './styles.css';
 import { $ } from './dom';
@@ -158,6 +159,7 @@ import type { AssetCatalog } from './types';
     const current = viewer.current();
     $('activeAnimation').textContent = `T${viewer.track} · ${current?.animation.name || 'Empty'}`;
     trackPanel.sync();
+    sequenceEditor.sync();
     $('playPausePath').setAttribute(
       'd',
       viewer.paused ? 'M7 3l14 9-14 9z' : 'M6 4h4v16H6zM14 4h4v16h-4z',
@@ -196,7 +198,8 @@ import type { AssetCatalog } from './types';
     error(err);
     return;
   }
-  const trackPanel = new TrackPanel(viewer);
+  const sequenceEditor = new SequenceEditor(viewer);
+  const trackPanel = new TrackPanel(viewer, (track) => sequenceEditor.open(track));
   viewer.onChange = syncControls;
   viewer.onTick = () => {
     trackPanel.tick();

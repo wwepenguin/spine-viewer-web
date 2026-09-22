@@ -21,6 +21,7 @@ function fixture() {
     skeleton: { spine: '3.8.55' },
     bones: [{ name: 'root' }, { name: 'body', parent: 'root' }, { name: 'arm', parent: 'body' }],
     animations: {
+      aim: { bones: { arm: { rotate: [{ time: 0, angle: 45 }] } } },
       walk: {
         bones: {
           body: {
@@ -197,4 +198,91 @@ test('normal playback advances smoothly and exact loop boundaries return to zero
   assert.deepEqual(tracks.advance(0.25, 0.75), { time: 0, complete: false });
   close(state.getCurrent(0).trackTime, 0);
   close(tracks.advance(0, 3.2).time, 0.2);
+});
+
+test('sequence overlaps clips and blends actual bone poses during mix in', () => {
+  const { tracks, state, skeleton } = fixture();
+  tracks.setSequence(0, [
+    { name: 'walk', mixIn: 0 },
+    { name: 'lean', mixIn: 0.2 },
+    { name: 'shoot', mixIn: 0.2 },
+  ]);
+  const layout = tracks.layout(0);
+  close(layout[1].start, 0.8);
+  close(layout[2].start, 1.6);
+  close(tracks.duration, 2.6);
+  tracks.seekAll(0.9);
+  assert.equal(state.getCurrent(0).animation.name, 'lean');
+  close(state.getCurrent(0).mixTime, 0.1);
+  close(skeleton.findBone('body').x, 15);
+  tracks.seekAll(0.4);
+  close(skeleton.findBone('body').x, 4);
+  tracks.seekAll(1.7);
+  assert.equal(state.getCurrent(0).animation.name, 'shoot');
+  close(skeleton.findBone('arm').rotation, 4.5);
+});
+
+test('continuous playback and direct seeking agree through transitions at different speeds', () => {
+  const a = fixture(),
+    b = fixture();
+  for (const { tracks } of [a, b]) {
+    tracks.configure(0, { speed: 0.5 });
+    tracks.setSequence(0, [
+      { name: 'walk', mixIn: 0 },
+      { name: 'lean', mixIn: 0.2 },
+    ]);
+    tracks.setSequence(1, [{ name: 'shoot', mixIn: 0 }]);
+  }
+  let time = 0;
+  for (let i = 0; i < 180; i++) time = a.tracks.advance(time, 0.01).time;
+  b.tracks.seekAll(time);
+  close(a.skeleton.findBone('body').x, b.skeleton.findBone('body').x);
+  close(a.skeleton.findBone('arm').rotation, b.skeleton.findBone('arm').rotation);
+  close(a.state.getCurrent(0).mixDuration, 0.4);
+  assert.equal(a.state.getCurrent(0).animation.name, 'lean');
+});
+
+test('sequence edits normalize overlap and reject invalid clips without losing tracks', () => {
+  const { tracks, state } = fixture();
+  tracks.setSequence(0, [
+    { name: 'walk', mixIn: 3 },
+    { name: 'lean', mixIn: 4 },
+    { name: 'shoot', mixIn: 4 },
+  ]);
+  assert.deepEqual(
+    tracks.sequences[0].map((clip) => clip.mixIn),
+    [0, 1, 0],
+  );
+  assert.throws(() => tracks.setSequence(0, [{ name: 'missing', mixIn: 0 }]));
+  assert.equal(tracks.sequences[0].length, 3);
+  tracks.configure(0, { loop: false });
+  const result = tracks.advance(0, 20);
+  assert.equal(result.complete, true);
+  assert.equal(state.getCurrent(0).animation.name, 'shoot');
+  tracks.configure(0, { loop: true });
+  close(tracks.advance(result.time, 0.1).time, 0.1);
+  tracks.clear(0);
+  assert.equal(tracks.sequences[0].length, 0);
+});
+
+test('zero-length pose clips transition without stalling and multi-track settings retain sequences', () => {
+  const { tracks, state } = fixture();
+  tracks.setSequence(0, [
+    { name: 'aim', mixIn: 0 },
+    { name: 'walk', mixIn: 0 },
+    { name: 'lean', mixIn: 0 },
+  ]);
+  assert.equal(state.getCurrent(0).animation.name, 'walk');
+  tracks.setSequence(1, [
+    { name: 'shoot', mixIn: 0 },
+    { name: 'shoot', mixIn: 0.2 },
+  ]);
+  tracks.seekAll(0.9);
+  tracks.configure(1, { additive: true, alpha: 0.4 });
+  assert.equal(state.getCurrent(1).mixBlend, 3);
+  close(state.getCurrent(1).alpha, 0.4);
+  assert.equal(tracks.sequences[1].length, 2);
+  tracks.seekAll(1);
+  assert.equal(state.getCurrent(0).animation.name, 'lean');
+  close(state.getCurrent(0).mixDuration, 0);
 });

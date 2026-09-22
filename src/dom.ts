@@ -1,4 +1,11 @@
 export interface Elements {
+  sequenceDialog: HTMLDialogElement;
+  sequenceTitle: HTMLElement;
+  sequenceInfo: HTMLElement;
+  sequenceList: HTMLElement;
+  sequenceAnimation: HTMLSelectElement;
+  addSequenceClip: HTMLButtonElement;
+  closeSequence: HTMLButtonElement;
   trackCount: HTMLElement;
   selectedTrack: HTMLElement;
   restartTracks: HTMLButtonElement;
