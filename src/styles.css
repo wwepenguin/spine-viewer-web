@@ -183,6 +183,46 @@ h1 span {
   font-weight: 650;
   letter-spacing: 0.25px;
 }
+.sidebar .section-heading h2 {
+  flex: 1;
+  min-width: 0;
+}
+.section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  letter-spacing: inherit;
+}
+.section-toggle:hover {
+  background: transparent;
+  color: var(--mint);
+}
+.section-toggle svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.section-toggle[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+.sidebar .collapsed .section-heading {
+  margin-bottom: 0;
+}
+.section-content[hidden] {
+  display: none;
+}
 .section-actions {
   display: flex;
   align-items: center;

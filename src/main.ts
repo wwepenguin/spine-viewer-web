@@ -8,6 +8,16 @@ import { SkeletonPerformance } from './performance';
 import { registerViewerTools } from './webmcp';
 import type { AssetCatalog } from './types';
 (() => {
+  document.querySelectorAll<HTMLButtonElement>('.section-toggle').forEach((toggle) => {
+    const content = document.getElementById(toggle.getAttribute('aria-controls')!);
+    if (!content) return;
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(expanded));
+      content.hidden = !expanded;
+      toggle.closest('section')?.classList.toggle('collapsed', !expanded);
+    });
+  });
   let viewer: SkeletonViewer,
     catalog: AssetCatalog,
     controller: AbortController | undefined,

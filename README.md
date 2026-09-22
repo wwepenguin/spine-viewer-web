@@ -61,6 +61,8 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 Vite build 附 source map 供除錯；若不想發布原始碼，將 `vite.config.ts` 的 `build.sourcemap` 設成 `false` 後重新打包。pixi-spine 含多個 runtime，正式 JS bundle 較大屬預期；不任意裁掉 runtime 以維持既有相容範圍。
 
+左側 **Assets／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，重新載入頁面時預設全部展開。
+
 ## 多軌時間軸
 
 畫面下方提供 Track 0–5。Track 0 選 `walk`、Track 1 選 `shoot`，可同時預覽行走與射擊。各軌都有動畫選單、Loop 與清除按鈕；點 T0–T5 選擇編輯軌道，再到側欄「Selected track settings」調整速度、權重及 Additive。切換選取軌道不會停止其他軌道；清除一軌也會保留其他軌的時間。

@@ -52,123 +52,195 @@
       <aside id="sidebar" class="sidebar" aria-label="Skeleton controls">
         <section class="source-section">
           <div class="section-heading">
-            <h2>Assets</h2>
+            <h2>
+              <button
+                type="button"
+                class="section-toggle"
+                aria-expanded="true"
+                aria-controls="assetsContent"
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="m5 3 5 5-5 5" />
+                </svg>
+                Assets
+              </button>
+            </h2>
             <span id="formatBadge" class="badge">SPINE 3.8</span>
           </div>
-          <label for="skeletonSelect">Skeleton</label
-          ><select id="skeletonSelect" disabled>
-            <option>Loading…</option>
-          </select>
-          <label for="atlasSelect">Atlas</label
-          ><select id="atlasSelect" disabled>
-            <option>—</option>
-          </select>
-          <p class="file-note">Drop a skeleton, atlas and textures. Assets stay in your browser.</p>
+          <div id="assetsContent" class="section-content">
+            <label for="skeletonSelect">Skeleton</label
+            ><select id="skeletonSelect" disabled>
+              <option>Loading…</option>
+            </select>
+            <label for="atlasSelect">Atlas</label
+            ><select id="atlasSelect" disabled>
+              <option>—</option>
+            </select>
+            <p class="file-note">
+              Drop a skeleton, atlas and textures. Assets stay in your browser.
+            </p>
+          </div>
         </section>
         <section class="skin-section">
           <div class="section-heading">
-            <h2>Skin</h2>
+            <h2>
+              <button
+                type="button"
+                class="section-toggle"
+                aria-expanded="true"
+                aria-controls="skinContent"
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="m5 3 5 5-5 5" />
+                </svg>
+                Skin
+              </button>
+            </h2>
             <span id="skinCount" class="count">0</span>
           </div>
-          <select id="skinSelect" aria-label="Skin" disabled></select>
+          <div id="skinContent" class="section-content">
+            <select id="skinSelect" aria-label="Skin" disabled></select>
+          </div>
         </section>
         <section class="slot-section">
           <div class="section-heading">
-            <h2>Slots</h2>
+            <h2>
+              <button
+                type="button"
+                class="section-toggle"
+                aria-expanded="true"
+                aria-controls="slotsContent"
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="m5 3 5 5-5 5" />
+                </svg>
+                Slots
+              </button>
+            </h2>
             <div class="section-actions">
               <span id="slotCount" class="count">0</span
               ><button id="clearSlot" class="text-button">Clear</button>
             </div>
           </div>
-          <input
-            id="slotSearch"
-            class="search"
-            type="search"
-            placeholder="Search slots"
-            aria-label="Search slots"
-            autocomplete="off"
-          />
-          <div
-            id="slotList"
-            class="item-list slot-list"
-            role="listbox"
-            aria-label="Slot list"
-            tabindex="0"
-          ></div>
-          <div id="slotDetails" class="slot-details">
-            <span class="selection-dot"></span
-            ><span id="slotDetailText">Select a slot to highlight it</span
-            ><button id="copySlot" class="text-button" disabled>Copy</button>
+          <div id="slotsContent" class="section-content">
+            <input
+              id="slotSearch"
+              class="search"
+              type="search"
+              placeholder="Search slots"
+              aria-label="Search slots"
+              autocomplete="off"
+            />
+            <div
+              id="slotList"
+              class="item-list slot-list"
+              role="listbox"
+              aria-label="Slot list"
+              tabindex="0"
+            ></div>
+            <div id="slotDetails" class="slot-details">
+              <span class="selection-dot"></span
+              ><span id="slotDetailText">Select a slot to highlight it</span
+              ><button id="copySlot" class="text-button" disabled>Copy</button>
+            </div>
           </div>
         </section>
         <section class="animation-section">
           <div class="section-heading">
-            <h2>Animations</h2>
+            <h2>
+              <button
+                type="button"
+                class="section-toggle"
+                aria-expanded="true"
+                aria-controls="animationsContent"
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="m5 3 5 5-5 5" />
+                </svg>
+                Animations
+              </button>
+            </h2>
             <span id="animationCount" class="count">0</span>
           </div>
-          <p class="track-hint">
-            Apply to <strong id="selectedTrack">Track 0</strong>. Select a track in the timeline
-            below.
-          </p>
-          <div
-            id="animationList"
-            class="item-list animation-list"
-            role="listbox"
-            aria-label="Animation list"
-            tabindex="0"
-          ></div>
-          <details class="advanced">
-            <summary>Selected track settings</summary>
-            <div class="mix-row">
-              <label for="trackSpeed">Track speed</label
-              ><input id="trackSpeed" type="number" min="0" max="3" step="0.25" value="1" /><span
-                >×</span
-              >
-            </div>
-            <div class="mix-row">
-              <label for="mix">Default mix in</label
-              ><input id="mix" type="number" min="0" max="4" step="0.05" value="0.2" /><span
-                >s</span
-              >
-            </div>
-            <label class="range-label" for="trackAlpha"
-              >Track weight <output id="alphaValue">100%</output></label
-            ><input id="trackAlpha" type="range" min="0" max="1" step="0.01" value="1" />
-            <div class="mix-bottom">
-              <label><input id="additive" type="checkbox" disabled />Additive</label
-              ><button id="clearTrack" class="text-button">Clear track</button>
-            </div>
-          </details>
+          <div id="animationsContent" class="section-content">
+            <p class="track-hint">
+              Apply to <strong id="selectedTrack">Track 0</strong>. Select a track in the timeline
+              below.
+            </p>
+            <div
+              id="animationList"
+              class="item-list animation-list"
+              role="listbox"
+              aria-label="Animation list"
+              tabindex="0"
+            ></div>
+            <details class="advanced">
+              <summary>Selected track settings</summary>
+              <div class="mix-row">
+                <label for="trackSpeed">Track speed</label
+                ><input id="trackSpeed" type="number" min="0" max="3" step="0.25" value="1" /><span
+                  >×</span
+                >
+              </div>
+              <div class="mix-row">
+                <label for="mix">Default mix in</label
+                ><input id="mix" type="number" min="0" max="4" step="0.05" value="0.2" /><span
+                  >s</span
+                >
+              </div>
+              <label class="range-label" for="trackAlpha"
+                >Track weight <output id="alphaValue">100%</output></label
+              ><input id="trackAlpha" type="range" min="0" max="1" step="0.01" value="1" />
+              <div class="mix-bottom">
+                <label><input id="additive" type="checkbox" disabled />Additive</label
+                ><button id="clearTrack" class="text-button">Clear track</button>
+              </div>
+            </details>
+          </div>
         </section>
         <section class="view-section">
           <div class="section-heading">
-            <h2>View</h2>
+            <h2>
+              <button
+                type="button"
+                class="section-toggle"
+                aria-expanded="true"
+                aria-controls="viewContent"
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="m5 3 5 5-5 5" />
+                </svg>
+                View
+              </button>
+            </h2>
             <button id="setupPose" class="text-button">Setup pose</button>
           </div>
-          <div class="view-controls">
-            <button id="fitButton">Fit view <kbd>F</kbd></button
-            ><button id="flipX" aria-pressed="false">Flip X</button
-            ><button id="flipY" aria-pressed="false">Flip Y</button>
-          </div>
-          <label class="range-label" for="zoom">Zoom <output id="zoomValue">100%</output></label
-          ><input id="zoom" type="range" min="10" max="400" value="100" />
-          <div class="checks">
-            <label><input id="pma" type="checkbox" /> Premultiplied alpha</label
-            ><label><input id="linear" type="checkbox" checked /> Linear filtering</label>
-          </div>
-          <details class="advanced">
-            <summary>Debug overlays</summary>
-            <div id="debugOptions" class="debug-options">
-              <label><input type="checkbox" data-debug="drawBones" />Bones</label
-              ><label><input type="checkbox" data-debug="drawRegionAttachments" />Regions</label
-              ><label><input type="checkbox" data-debug="drawBoundingBoxes" />Bounds</label
-              ><label><input type="checkbox" data-debug="drawMeshHull" />Mesh hull</label
-              ><label><input type="checkbox" data-debug="drawMeshTriangles" />Triangles</label
-              ><label><input type="checkbox" data-debug="drawPaths" />Paths</label
-              ><label><input type="checkbox" data-debug="drawClipping" />Clipping</label
-              ><label><input type="checkbox" data-debug="points" />Points</label>
+          <div id="viewContent" class="section-content">
+            <div class="view-controls">
+              <button id="fitButton">Fit view <kbd>F</kbd></button
+              ><button id="flipX" aria-pressed="false">Flip X</button
+              ><button id="flipY" aria-pressed="false">Flip Y</button>
             </div>
-          </details>
+            <label class="range-label" for="zoom">Zoom <output id="zoomValue">100%</output></label
+            ><input id="zoom" type="range" min="10" max="400" value="100" />
+            <div class="checks">
+              <label><input id="pma" type="checkbox" /> Premultiplied alpha</label
+              ><label><input id="linear" type="checkbox" checked /> Linear filtering</label>
+            </div>
+            <details class="advanced">
+              <summary>Debug overlays</summary>
+              <div id="debugOptions" class="debug-options">
+                <label><input type="checkbox" data-debug="drawBones" />Bones</label
+                ><label><input type="checkbox" data-debug="drawRegionAttachments" />Regions</label
+                ><label><input type="checkbox" data-debug="drawBoundingBoxes" />Bounds</label
+                ><label><input type="checkbox" data-debug="drawMeshHull" />Mesh hull</label
+                ><label><input type="checkbox" data-debug="drawMeshTriangles" />Triangles</label
+                ><label><input type="checkbox" data-debug="drawPaths" />Paths</label
+                ><label><input type="checkbox" data-debug="drawClipping" />Clipping</label
+                ><label><input type="checkbox" data-debug="points" />Points</label>
+              </div>
+            </details>
+          </div>
         </section>
       </aside>
       <section class="viewer-column" aria-label="Animation preview">
