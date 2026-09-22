@@ -158,3 +158,43 @@ test('shared timeline seeks all layers with independent speeds and repeatable po
   assert.throws(() => tracks.seekAll(-1));
   assert.throws(() => tracks.seekAll(NaN));
 });
+
+test('looping preview wraps the shared clock and all layers at the longest clip', () => {
+  const { tracks, state, skeleton } = fixture();
+  tracks.play(0, 'walk', 0);
+  tracks.configure(1, { speed: 0.5 });
+  tracks.play(1, 'shoot', 0);
+  tracks.seekAll(1.95);
+  const result = tracks.advance(1.95, 0.1);
+  close(result.time, 0.05);
+  assert.equal(result.complete, false);
+  close(state.getCurrent(0).trackTime, 0.05);
+  close(state.getCurrent(1).trackTime, 0.025);
+  close(skeleton.findBone('body').x, 0.5);
+  close(skeleton.findBone('arm').rotation, 2.25);
+});
+
+test('non-looping preview stops at the end and frozen layers do not extend the cycle', () => {
+  const { tracks, state, skeleton } = fixture();
+  tracks.configure(0, { loop: false });
+  tracks.play(0, 'walk', 0);
+  tracks.configure(1, { speed: 0 });
+  tracks.play(1, 'shoot', 0);
+  const result = tracks.advance(0, 1.2);
+  assert.equal(result.complete, true);
+  close(result.time, 1);
+  close(skeleton.findBone('body').x, 10);
+  close(state.getCurrent(1).trackTime, 0);
+  tracks.clear(0);
+  assert.deepEqual(tracks.advance(0, 0.1), { time: 0, complete: true });
+});
+
+test('normal playback advances smoothly and exact loop boundaries return to zero', () => {
+  const { tracks, state } = fixture();
+  tracks.play(0, 'walk', 0);
+  close(tracks.advance(0, 0.25).time, 0.25);
+  close(state.getCurrent(0).trackTime, 0.25);
+  assert.deepEqual(tracks.advance(0.25, 0.75), { time: 0, complete: false });
+  close(state.getCurrent(0).trackTime, 0);
+  close(tracks.advance(0, 3.2).time, 0.2);
+});

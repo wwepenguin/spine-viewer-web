@@ -379,9 +379,13 @@ export class SkeletonViewer {
   }
   tick(dt: number) {
     if (!this.model) return;
-    if (!this.paused && this.model.state.tracks.some(Boolean)) {
-      this.timelineTime += dt * this.speed;
-      this.model.update(dt * this.speed);
+    if (!this.paused && this.animationTracks && this.model.state.tracks.some(Boolean)) {
+      const result = this.animationTracks.advance(this.timelineTime, dt * this.speed);
+      this.timelineTime = result.time;
+      if (result.complete) {
+        this.paused = true;
+        this.onChange?.();
+      }
     }
     this.drawHighlight();
     this.onTick?.();

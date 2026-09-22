@@ -83,6 +83,26 @@ export class AnimationTracks {
     if (!Number.isFinite(time) || time < 0) throw Error('Invalid animation time');
     this.rebuild((track) => time * this.settings[track].speed);
   }
+  /** The longest moving clip defines one preview cycle, in shared timeline seconds. */
+  advance(time: number, delta: number) {
+    const moving = this.model.state.tracks.filter(
+      (entry) => entry && entry.timeScale > 0 && entry.animation.duration > 0,
+    );
+    const duration = Math.max(
+      0,
+      ...moving.map((entry) => entry!.animation.duration / entry!.timeScale),
+    );
+    if (!duration) return { time: 0, complete: true };
+    const next = time + delta;
+    if (next >= duration) {
+      const loop = moving.some((entry) => entry!.loop);
+      const position = loop ? next % duration : duration;
+      this.seekAll(position);
+      return { time: position, complete: !loop };
+    }
+    this.model.update(delta);
+    return { time: next, complete: false };
+  }
   private rebuild(
     time: (track: number, previous: number) => number = (_track, previous) => previous,
   ) {
