@@ -4,6 +4,7 @@ import type { TrackPanel } from './track-panel';
 import { EditHistory } from './history';
 import { installMusicTools } from './music-tools';
 import { installStageTools } from './stage-tools';
+import { installPreferences } from './preferences';
 import type { ProjectSnapshot } from './project';
 
 export function installEditor(
@@ -160,4 +161,5 @@ export function installEditor(
   record();
   installMusicTools(viewer, report);
   installStageTools(viewer);
+  installPreferences(viewer, timeline);
 }

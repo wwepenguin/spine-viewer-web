@@ -1597,3 +1597,48 @@ kbd {
   background: #ff8f7e;
   pointer-events: none;
 }
+.workspace {
+  position: relative;
+  --effective-timeline-height: min(var(--timeline-height, 370px), max(180px, calc(100dvh - 210px)));
+  grid-template-rows: minmax(120px, 1fr) var(--effective-timeline-height);
+}
+@media (min-width: 721px) {
+  .workspace {
+    grid-template-columns: var(--sidebar-width, 310px) minmax(0, 1fr);
+  }
+}
+.panel-sizer {
+  position: absolute;
+  z-index: 6;
+  touch-action: none;
+}
+.panel-sizer:hover,
+.panel-sizer:focus-visible {
+  background: #68e3c466;
+  outline: none;
+}
+#sidebarSizer {
+  width: 6px;
+  top: 0;
+  bottom: var(--effective-timeline-height);
+  left: calc(var(--sidebar-width, 310px) - 3px);
+  cursor: col-resize;
+}
+#timelineSizer {
+  height: 6px;
+  bottom: calc(var(--effective-timeline-height) - 3px);
+  left: 0;
+  right: 0;
+  cursor: row-resize;
+}
+#preferencesContent label {
+  font-size: 11px;
+}
+#preferencesContent input {
+  width: 100%;
+}
+@media (max-width: 720px) {
+  #sidebarSizer {
+    display: none;
+  }
+}
