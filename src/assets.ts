@@ -34,6 +34,7 @@ export async function load(
   if (!atlasFile) throw Error('Select the .atlas file matching this skeleton.');
   let atlas: TextureAtlas;
   const textures = new Set<PIXI.BaseTexture>();
+  const used = new Set<File>([skeleton.file, atlasFile.file]);
   let failed = false;
   try {
     const [raw, atlasText] = await Promise.all([
@@ -48,7 +49,10 @@ export async function load(
           (page, done) => {
             Promise.resolve()
               .then(() => resolvePage(data, atlasFile.path, page))
-              .then((file) => imageTexture(file, pma, linear, signal))
+              .then((file) => {
+                used.add(file);
+                return imageTexture(file, pma, linear, signal);
+              })
               .then((texture) => {
                 if (failed || signal.aborted) {
                   texture.destroy();
@@ -103,6 +107,13 @@ export async function load(
     }
     if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
     return {
+      source: {
+        entries: data.entries.filter((e) => used.has(e.file)),
+        skeleton: skeleton.path,
+        atlas: atlasFile.path,
+        pma,
+        linear,
+      },
       spineData,
       atlas,
       textures,

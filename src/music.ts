@@ -31,6 +31,7 @@ export class MusicTransport {
   private loadTicket = 0;
   private repeating = false;
   name = '';
+  file?: File;
   peaks = new Float32Array();
   volume = 0.8;
   muted = false;
@@ -85,6 +86,7 @@ export class MusicTransport {
     this.buffer = buffer;
     this.peaks = peaks;
     this.name = file.name;
+    this.file = file;
     this.offset = 0;
     this.onChange?.();
     return true;
@@ -171,7 +173,13 @@ export class MusicTransport {
     this.buffer = undefined;
     this.peaks = new Float32Array();
     this.name = '';
+    this.file = undefined;
     this.offset = 0;
     this.onChange?.();
+  }
+  dispose() {
+    this.onChange = undefined;
+    this.clear();
+    void this.context?.close();
   }
 }

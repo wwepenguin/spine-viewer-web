@@ -194,10 +194,14 @@ export class SkeletonViewer {
     item.model.destroy({ children: true, texture: false, baseTexture: false });
     item.asset.dispose();
   }
-  setScene(assets: { asset: SkeletonAsset; name: string }[]) {
+  setScene(
+    assets: { asset: SkeletonAsset; name: string }[],
+    prepare?: (items: SceneItem[]) => void,
+  ) {
     const next: SceneItem[] = [];
     try {
       for (const { asset, name } of assets) next.push(this.createItem(asset, name));
+      prepare?.(next);
     } catch (error) {
       for (const item of next)
         item.model.destroy({ children: true, texture: false, baseTexture: false });
@@ -210,7 +214,8 @@ export class SkeletonViewer {
     this.world.addChild(this.points, this.highlight);
     this.active = undefined;
     this.selectItem(next[0]?.id);
-    this.arrange();
+    if (!prepare) this.arrange();
+    else this.fit();
   }
   addModel(asset: SkeletonAsset, name = asset.fileName) {
     let item: SceneItem;

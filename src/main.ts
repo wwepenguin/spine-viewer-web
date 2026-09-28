@@ -1,3 +1,4 @@
+import { installEditor } from './editor';
 import { SequenceEditor } from './sequence-editor';
 import { TrackPanel } from './track-panel';
 import './styles.css';
@@ -547,5 +548,6 @@ import type { AssetCatalog, SkeletonAsset } from './types';
       .catch(error);
   });
   registerViewerTools(viewer, syncControls);
+  installEditor(viewer, trackPanel, error);
   safe(async () => openCatalog(await SpineIO.sample()))();
 })();

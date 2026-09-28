@@ -16,6 +16,7 @@ export interface LoadOptions {
   signal?: AbortSignal;
 }
 export interface SkeletonAsset {
+  source: { entries: AssetEntry[]; skeleton: string; atlas: string; pma: boolean; linear: boolean };
   spineData: ISkeletonData;
   atlas: TextureAtlas;
   textures: Set<BaseTexture>;

@@ -1449,3 +1449,28 @@ kbd {
   overflow-wrap: anywhere;
   color: #b6a6ff;
 }
+:root {
+  --editor-accent: #68e3c4;
+}
+.editor-panel {
+  padding: 14px;
+  border-bottom: 1px solid #293543;
+}
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.editor-panel .hint {
+  color: #96a6b9;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.project-busy {
+  color: #dce7f2;
+  background: #17202b;
+  border: 1px solid #68e3c4;
+  border-radius: 8px;
+  padding: 28px;
+}
