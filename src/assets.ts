@@ -65,7 +65,7 @@ export async function load(
                 const alpha = pma ? PIXI.ALPHA_MODES.PMA : PIXI.ALPHA_MODES.UNPACK;
                 const filter = linear ? PIXI.SCALE_MODES.LINEAR : PIXI.SCALE_MODES.NEAREST;
                 return texturePool.acquire(
-                  `${fileId(file)}:${fileId(atlasFile.file)}:${pma}:${linear}`,
+                  `${fileId(file)}:${fileId(atlasFile.file)}`,
                   () => imageTexture(file, pma, linear),
                   (texture) => texture.alphaMode === alpha && texture.scaleMode === filter,
                 );

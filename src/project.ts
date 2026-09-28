@@ -1,10 +1,10 @@
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
-import type { SkeletonViewer, SceneItem } from './viewer';
-import type { SkeletonAsset, AssetCatalog } from './types';
+import type { SkeletonViewer } from './viewer';
+import type { SkeletonAsset } from './types';
 import type { AnimationClip, TrackSettings } from './animation-tracks';
-import { MusicTransport } from './music';
 
 export interface ActorState {
+  selectedSlot?: string | null;
   locked?: boolean;
   name: string;
   x: number;
@@ -44,6 +44,7 @@ export function captureProject(viewer: SkeletonViewer): ProjectSnapshot {
     actors: viewer.items.map((i) => ({
       source: { ...i.asset.source, entries: [...i.asset.source.entries] },
       state: {
+        selectedSlot: i.selectedSlot,
         locked: i.locked,
         name: i.name,
         x: i.model.x,
@@ -102,6 +103,9 @@ function actorState(value: ActorState): ActorState {
     throw Error('Invalid animation tracks.');
   return {
     name: string(value.name),
+    ...(value.selectedSlot !== undefined
+      ? { selectedSlot: value.selectedSlot === null ? null : string(value.selectedSlot) }
+      : {}),
     ...(value.locked !== undefined ? { locked: bool(value.locked) } : {}),
     x: finite(value.x),
     y: finite(value.y),
@@ -130,11 +134,15 @@ function actorState(value: ActorState): ActorState {
   };
 }
 export async function encodeProject(snapshot: ProjectSnapshot) {
+  if (snapshot.actors.length > 128) throw Error('Projects support up to 128 skeletons.');
+  let total = 0;
   const files: Record<string, Uint8Array> = {};
   const ids = new Map<File, string>();
   const put = async (file: File) => {
     let id = ids.get(file);
     if (!id) {
+      total += file.size;
+      if (total > 511 * 1024 * 1024) throw Error('Project assets exceed 511 MB.');
       id = `assets/${ids.size}`;
       ids.set(file, id);
       files[id] = new Uint8Array(await file.arrayBuffer());
@@ -143,6 +151,7 @@ export async function encodeProject(snapshot: ProjectSnapshot) {
   };
   const actors = [];
   for (const actor of snapshot.actors) {
+    if (actor.source.entries.length > 1000) throw Error('Too many files for one skeleton.');
     const entries = [];
     for (const entry of actor.source.entries)
       entries.push({ path: entry.path, ...(await put(entry.file)) });
@@ -156,7 +165,9 @@ export async function encodeProject(snapshot: ProjectSnapshot) {
     audio: snapshot.audio ? await put(snapshot.audio) : undefined,
   };
   files['project.json'] = strToU8(JSON.stringify(manifest));
-  return zipSync(files, { level: 0 });
+  const bytes = zipSync(files, { level: 0 });
+  if (bytes.length > 512 * 1024 * 1024) throw Error('Project exceeds 512 MB.');
+  return bytes;
 }
 export function decodeProject(bytes: Uint8Array): ProjectSnapshot {
   if (bytes.length > 512 * 1024 * 1024) throw Error('Project exceeds 512 MB.');
@@ -251,75 +262,4 @@ export function decodeProject(bytes: Uint8Array): ProjectSnapshot {
         : {}),
     },
   };
-}
-function applyActor(item: SceneItem, state: ActorState) {
-  item.locked = state.locked ?? false;
-  item.model.position.set(state.x, state.y);
-  item.model.scale.set(state.scale);
-  item.model.rotation = state.rotation;
-  item.model.visible = state.visible;
-  item.model.skeleton.scaleX = state.flipX;
-  item.model.skeleton.scaleY = state.flipY;
-  if (state.skin) item.model.skeleton.setSkinByName(state.skin);
-  item.startAt = state.startAt;
-  item.speed = state.speed;
-  item.mix = state.mix;
-  item.track = state.track;
-  item.timelineTime = state.time;
-  item.paused = true;
-  state.sequences.forEach((clips, index) => {
-    item.animationTracks.configure(index, state.settings[index]);
-    item.animationTracks.setSequence(index, clips);
-  });
-  item.animationTracks.seekAll(state.time);
-}
-export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSnapshot) {
-  const { load } = await import('./assets');
-  const assets: { asset: SkeletonAsset; name: string }[] = [];
-  const music = new MusicTransport();
-  try {
-    if (snapshot.audio) await music.load(snapshot.audio);
-    music.setRate(snapshot.music.rate);
-    music.loop = snapshot.music.loop;
-    music.setVolume(snapshot.music.volume, snapshot.music.muted);
-    music.markers = structuredClone(snapshot.music.markers ?? []);
-    music.bpm = snapshot.music.bpm ?? 120;
-    music.beatOffset = snapshot.music.beatOffset ?? 0;
-    const range = snapshot.music.range;
-    if (range && music.loaded) music.setRange(range.start, range.end, range.enabled);
-    music.seek(snapshot.music.time);
-    for (const { source, state } of snapshot.actors) {
-      const data: AssetCatalog = { entries: source.entries, skeletons: [], atlases: [] };
-      const asset = await load(
-        data,
-        source.entries.find((e) => e.path === source.skeleton),
-        source.entries.find((e) => e.path === source.atlas),
-        source,
-      );
-      assets.push({ asset, name: state.name });
-    }
-  } catch (error) {
-    assets.forEach((a) => a.asset.dispose());
-    music.dispose();
-    throw error;
-  }
-  // Prepare every model before setScene disposes the old scene.
-  const oldMusic = viewer.music;
-  viewer.music = music;
-  try {
-    viewer.setScene(assets, (items) =>
-      items.forEach((i, n) => applyActor(i, snapshot.actors[n].state)),
-    );
-  } catch (error) {
-    viewer.music = oldMusic;
-    music.dispose();
-    throw error;
-  }
-  oldMusic.dispose();
-  music.onError = oldMusic.onError;
-  music.onChange = () => {
-    if (music.loaded) viewer.syncMusic(true);
-    viewer.onChange?.();
-  };
-  viewer.selectItem(viewer.items[snapshot.selected]?.id);
 }

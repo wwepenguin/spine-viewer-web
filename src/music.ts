@@ -114,6 +114,9 @@ export class MusicTransport {
     this.onChange?.();
     return true;
   }
+  cancelLoad() {
+    ++this.loadTicket;
+  }
   private stopSource() {
     ++this.ticket;
     if (this.source) {

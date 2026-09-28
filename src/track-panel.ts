@@ -361,6 +361,10 @@ export class TrackPanel {
       el.textContent = label;
       el.title = `${label} · ${time.toFixed(3)} s`;
       el.setAttribute('aria-label', `Seek ${label} at ${time.toFixed(3)} seconds`);
+      if (kind === 'beat') {
+        el.tabIndex = -1;
+        el.setAttribute('aria-hidden', 'true');
+      }
       el.onpointerdown = (e) => e.stopPropagation();
       el.onclick = () => {
         this.viewer.paused = true;

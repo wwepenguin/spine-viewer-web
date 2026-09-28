@@ -34,6 +34,8 @@ export function installStageTools(viewer: SkeletonViewer) {
     };
   function sync() {
     const item = viewer.active;
+    for (const id of ['flipX', 'flipY'])
+      (document.getElementById(id) as HTMLButtonElement).disabled = !item || item.locked;
     for (const b of panel.querySelectorAll<HTMLButtonElement>('[data-mode]'))
       b.setAttribute('aria-pressed', String(b.dataset.mode === viewer.transformMode));
     scale.disabled = rotation.disabled = !item || item.locked;

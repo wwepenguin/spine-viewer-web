@@ -37,7 +37,7 @@ export function installPreferences(viewer: SkeletonViewer, timeline: TrackPanel)
   }
   const preferences = parsePreferences(stored);
   const panel = document.createElement('section');
-  panel.innerHTML = `<div class="section-heading"><h2><button class="section-toggle" aria-expanded="true" aria-controls="preferencesContent">Preferences</button></h2></div>
+  panel.innerHTML = `<div class="section-heading"><h2><button class="section-toggle" aria-expanded="true" aria-controls="preferencesContent"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Preferences</button></h2></div>
     <div id="preferencesContent"><label for="sidebarWidth">Sidebar width</label><input id="sidebarWidth" aria-label="Sidebar width" type="range" min="260" max="480" step="10">
     <label for="timelineHeight">Timeline height</label><input id="timelineHeight" aria-label="Timeline height" type="range" min="220" max="600" step="10">
     <p class="hint">Drag the panel dividers or use these sliders. Layout, collapsed sections, audio volume and frame FPS are remembered on this browser.</p></div>`;

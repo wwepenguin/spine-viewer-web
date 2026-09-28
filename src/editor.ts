@@ -1,4 +1,5 @@
-import { captureProject, decodeProject, encodeProject, restoreProject } from './project';
+import { captureProject, decodeProject, encodeProject } from './project';
+import { restoreProject } from './project-restore';
 import type { SkeletonViewer } from './viewer';
 import type { TrackPanel } from './track-panel';
 import { EditHistory } from './history';
@@ -11,10 +12,11 @@ export function installEditor(
   viewer: SkeletonViewer,
   timeline: TrackPanel,
   report: (error: unknown) => void,
+  cancelPending: () => void,
 ) {
   const section = document.createElement('section');
   section.className = 'panel editor-panel';
-  section.innerHTML = `<h2><button class="section-toggle" aria-expanded="true" aria-controls="projectContent">Project</button></h2>
+  section.innerHTML = `<div class="section-heading"><h2><button class="section-toggle" aria-expanded="true" aria-controls="projectContent"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Project</button></h2></div>
     <div id="projectContent"><div class="editor-actions"><button id="saveProject">Save project ZIP</button><button id="openProject">Open project ZIP</button></div>
     <input id="projectFile" type="file" accept=".zip" hidden><p class="hint">Includes skeletons, textures, audio and track settings. Opens paused.</p></div>`;
   document.getElementById('sidebar')!.prepend(section);
@@ -60,9 +62,12 @@ export function installEditor(
     const file = input.files?.[0];
     input.value = '';
     if (file)
-      void run(async () =>
-        restoreProject(viewer, decodeProject(new Uint8Array(await file.arrayBuffer()))),
-      );
+      void run(async () => {
+        if (file.size > 512 * 1024 * 1024) throw Error('Project exceeds 512 MB.');
+        const snapshot = decodeProject(new Uint8Array(await file.arrayBuffer()));
+        cancelPending();
+        await restoreProject(viewer, snapshot);
+      });
   };
   const actions = document.createElement('div');
   actions.className = 'editor-actions';
@@ -85,7 +90,7 @@ export function installEditor(
           ...a.source,
           entries: a.source.entries.map((e) => ({ path: e.path, id: fileId(e.file) })),
         },
-        state: { ...a.state, time: 0, track: 0 },
+        state: { ...a.state, time: 0, track: 0, selectedSlot: null },
       })),
       audio: fileId(s.audio),
       music: { ...s.music, time: 0 },
@@ -141,8 +146,12 @@ export function installEditor(
   const move = (direction: -1 | 1) => {
     record();
     void run(async () => {
-      await history.move(direction, (state) => restoreProject(viewer, state));
-      refresh();
+      cancelPending();
+      try {
+        await history.move(direction, (state) => restoreProject(viewer, state));
+      } finally {
+        refresh();
+      }
     });
   };
   undo.onclick = () => move(-1);

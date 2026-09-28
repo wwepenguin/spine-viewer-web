@@ -556,6 +556,13 @@ import type { AssetCatalog, SkeletonAsset } from './types';
       .catch(error);
   });
   registerViewerTools(viewer, syncControls);
-  installEditor(viewer, trackPanel, error);
+  installEditor(viewer, trackPanel, error, () => {
+    ++loadingId;
+    ++musicImport;
+    controller?.abort();
+    viewer.music.cancelLoad();
+    $('loading').hidden = true;
+    $('addToStage').disabled = !catalog?.atlases.length;
+  });
   safe(async () => openCatalog(await SpineIO.sample()))();
 })();

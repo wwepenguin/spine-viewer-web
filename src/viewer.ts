@@ -163,6 +163,7 @@ export class SkeletonViewer {
       const w = mount.clientWidth,
         h = mount.clientHeight;
       if (w && h) {
+        this.invalidate();
         this.app.renderer.resize(w, h);
         if (this.model) this.fit();
       }
