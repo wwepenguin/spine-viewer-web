@@ -2,9 +2,16 @@ import { TimelineViewport } from './timeline-viewport';
 import { TRACK_COUNT } from './animation-tracks';
 import type { SkeletonViewer } from './viewer';
 import { $ } from './dom';
+import { snapTime } from './snapping';
 
 /** Continuous pan/zoom viewport, independent of the shared playback clock. */
 export class TrackPanel {
+  snap = true;
+  bpm = 120;
+  beatOffset = 0;
+  snapBeats = false;
+  markers: number[] = [];
+  private startInput = document.createElement('input');
   private asset?: SkeletonViewer['asset'];
   private view = new TimelineViewport();
   private follow = true;
@@ -64,6 +71,30 @@ export class TrackPanel {
     private readonly viewer: SkeletonViewer,
     private readonly openSequence: (track: number) => void,
   ) {
+    const timing = document.createElement('div');
+    timing.className = 'editor-actions timing-controls';
+    timing.innerHTML =
+      '<label><input id="snapTime" type="checkbox" checked> Snap</label><label><input id="snapBeats" type="checkbox"> Beats</label>';
+    const label = document.createElement('label');
+    label.textContent = 'Track start (s) ';
+    this.startInput.type = 'number';
+    this.startInput.min = '0';
+    this.startInput.max = '7200';
+    this.startInput.step = '0.001';
+    this.startInput.setAttribute('aria-label', 'Selected track start');
+    this.startInput.oninput = () => {
+      if (this.startInput.value !== '' && this.startInput.validity.valid)
+        viewer.setTrackStart(Number(this.startInput.value));
+    };
+    label.append(this.startInput);
+    timing.append(label);
+    $('timeRuler').closest('.timeline-grid')!.before(timing);
+    timing.querySelector<HTMLInputElement>('#snapTime')!.onchange = (e) => {
+      this.snap = (e.target as HTMLInputElement).checked;
+    };
+    timing.querySelector<HTMLInputElement>('#snapBeats')!.onchange = (e) => {
+      this.snapBeats = (e.target as HTMLInputElement).checked;
+    };
     $('tracks').replaceChildren($('musicLabel'), ...this.rows.map((row) => row.row));
     $('musicLane').after(...this.rows.map((row) => row.lane));
     $('timelineLanes').ondblclick = (event) => {
@@ -101,7 +132,17 @@ export class TrackPanel {
     };
     $('fitTime').onclick = () => this.fit();
     for (const surface of [$('timeRuler'), $('timelineLanes'), $('musicLane')]) {
-      let gesture: { mode: 'pan' | 'seek'; x: number; start: number; width: number } | undefined;
+      let gesture:
+        | {
+            mode: 'pan' | 'seek' | 'clip';
+            x: number;
+            start: number;
+            width: number;
+            track?: number;
+            offset?: number;
+            clipStart?: number;
+          }
+        | undefined;
       const seek = (event: PointerEvent) => {
         const rect = surface.getBoundingClientRect();
         const fraction = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
@@ -132,6 +173,28 @@ export class TrackPanel {
         event.stopPropagation();
         this.follow = false;
         this.dragging = true;
+        const clip = (event.target as Element).closest<HTMLElement>('.animation-clip');
+        if (clip && event.button === 0 && !event.shiftKey) {
+          const track = Number(clip.parentElement!.dataset.track);
+          const clipIndex = Number(clip.dataset.clip);
+          const scale = viewer.trackSettings[track].speed || 1;
+          const actorOffset = viewer.music.loaded ? (viewer.active?.startAt ?? 0) : 0;
+          const clipStart =
+            actorOffset + (viewer.animationTracks?.layout(track)[clipIndex].start ?? 0) / scale;
+          gesture = {
+            mode: 'clip',
+            x: event.clientX,
+            start: this.page,
+            width: surface.clientWidth,
+            track,
+            offset: viewer.trackSettings[track].start ?? 0,
+            clipStart,
+          };
+          surface.setPointerCapture(event.pointerId);
+          viewer.paused = true;
+          viewer.setTrack(track);
+          return;
+        }
         const mode =
           event.button === 1 ||
           event.shiftKey ||
@@ -150,7 +213,28 @@ export class TrackPanel {
       surface.onpointermove = (event) => {
         if (!gesture || !surface.hasPointerCapture(event.pointerId)) return;
         if (gesture.mode === 'seek') seek(event);
-        else {
+        else if (gesture.mode === 'clip') {
+          const proposed =
+            gesture.offset! + ((event.clientX - gesture.x) / gesture.width) * this.span;
+          const absolute = proposed + gesture.clipStart!;
+          const targets = [viewer.timelineTime, ...this.markers];
+          if (this.snapBeats)
+            targets.push(
+              this.beatOffset +
+                (Math.round(((absolute - this.beatOffset) * this.bpm) / 60) * 60) / this.bpm,
+            );
+          const value = snapTime(
+            absolute,
+            Number($('stepFps').value),
+            targets,
+            (this.span / gesture.width) * 10,
+            this.snap && !event.altKey,
+          );
+          viewer.setTrackStart(
+            Math.min(7200, Math.max(0, value - gesture.clipStart!)),
+            gesture.track,
+          );
+        } else {
           this.page = Math.max(
             0,
             gesture.start - ((event.clientX - gesture.x) / gesture.width) * this.span,
@@ -188,6 +272,9 @@ export class TrackPanel {
     this.sync();
   }
   sync() {
+    if (document.activeElement !== this.startInput)
+      this.startInput.value = String(this.viewer.trackSettings[this.viewer.track]?.start ?? 0);
+    this.startInput.disabled = !this.viewer.active;
     if (this.asset !== this.viewer.asset) {
       this.asset = this.viewer.asset;
       if (!this.viewer.music.loaded) {
@@ -203,8 +290,7 @@ export class TrackPanel {
     }
     let active = 0;
     this.rows.forEach((row, index) => {
-      const entry = this.viewer.model?.state.getCurrent(index);
-      if (entry) active++;
+      if (this.viewer.animationTracks?.sequences[index].length) active++;
       const selected = this.viewer.track === index;
       row.row.classList.toggle('selected', selected);
       row.lane.classList.toggle('selected', selected);
@@ -216,7 +302,7 @@ export class TrackPanel {
       row.animation.value = clips.length > 1 ? '__sequence__' : clips[0]?.name || '';
       row.animation.disabled = !this.asset?.spineData.animations.length;
       row.sequence.disabled = !this.asset?.spineData.animations.length;
-      row.clear.disabled = !entry;
+      row.clear.disabled = !clips.length;
       row.loop.checked = this.viewer.trackSettings[index]?.loop ?? true;
     });
     $('trackCount').textContent = `${active} active`;
@@ -301,14 +387,14 @@ export class TrackPanel {
     );
     this.rows.forEach((row, index) => {
       row.lane.replaceChildren();
-      const entry = this.viewer.model?.state.getCurrent(index);
       row.lane.removeAttribute('title');
-      if (!entry) return;
       const schedule = this.viewer.animationTracks?.layout(index) ?? [];
       const speed = this.viewer.trackSettings[index].speed;
       const scale = speed > 0 ? speed : 1;
       schedule.forEach((clip, clipIndex) => {
-        const offset = this.viewer.music.loaded ? (this.viewer.active?.startAt ?? 0) : 0;
+        const offset =
+          (this.viewer.music.loaded ? (this.viewer.active?.startAt ?? 0) : 0) +
+          (this.viewer.trackSettings[index].start ?? 0);
         const start = offset + clip.start / scale;
         const end = offset + clip.end / scale;
         if (end < this.page || start > this.page + this.span) return;
@@ -316,7 +402,7 @@ export class TrackPanel {
         const block = document.createElement('span');
         block.className = 'animation-clip';
         block.dataset.clip = String(clipIndex);
-        block.title = `${label} · Mix in ${clip.mixIn.toFixed(2)}s`;
+        block.title = `${label} · Mix in ${clip.mixIn.toFixed(2)}s · Drag to move the track sequence. Alt: disable snapping.`;
         const name = document.createElement('span');
         name.className = 'clip-label';
         name.textContent = label;

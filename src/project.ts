@@ -104,6 +104,7 @@ function actorState(value: ActorState): ActorState {
       return clips.map((c) => ({ name: string(c.name), mixIn: finite(c.mixIn, 0, 4) }));
     }),
     settings: value.settings.map((s) => ({
+      ...(s.start !== undefined ? { start: finite(s.start, 0, 7200) } : {}),
       alpha: finite(s.alpha, 0, 1),
       speed: finite(s.speed, 0, 3),
       additive: bool(s.additive),

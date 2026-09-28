@@ -340,6 +340,13 @@ export class SkeletonViewer {
     else this.animationTracks?.seekAll(this.timelineTime);
     this.onChange?.();
   }
+  setTrackStart(start: number, track = this.track) {
+    this.animationTracks?.configure(track, { start });
+    if (this.music.loaded) this.syncMusic(true);
+    else this.animationTracks?.seekAll(this.timelineTime);
+    this.drawHighlight();
+    this.onChange?.();
+  }
   clearTrack(track = this.track) {
     this.animationTracks?.clear(track);
     this.drawHighlight();
@@ -637,7 +644,7 @@ export class SkeletonViewer {
     }
     let changed = false;
     for (const item of this.items) {
-      if (!item.paused && item.model.state.tracks.some(Boolean)) {
+      if (!item.paused && item.animationTracks.sequences.some((clips) => clips.length)) {
         const result = item.animationTracks.advance(item.timelineTime, dt * item.speed);
         item.timelineTime = result.time;
         if (result.complete) {

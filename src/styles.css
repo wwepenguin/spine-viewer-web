@@ -1474,3 +1474,21 @@ kbd {
   border-radius: 8px;
   padding: 28px;
 }
+.timing-controls {
+  padding: 0 12px;
+  align-items: center;
+  font-size: 11px;
+  margin: 3px 0;
+}
+.timing-controls label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.timing-controls input[type='number'] {
+  width: 82px;
+  padding: 3px;
+}
+.animation-clip {
+  cursor: grab;
+}

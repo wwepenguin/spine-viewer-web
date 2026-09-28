@@ -11,6 +11,7 @@ export interface ScheduledClip extends AnimationClip {
   duration: number;
 }
 export interface TrackSettings {
+  start?: number;
   alpha: number;
   additive: boolean;
   loop: boolean;
@@ -50,10 +51,16 @@ export class AnimationTracks {
     entry.timeScale = settings.speed;
     entry.mixBlend = track > 0 && settings.additive ? 3 : 2;
     this.model.update(0);
+    if (settings.start) this.seekAll(this.cursor);
     return entry;
   }
   configure(track: number, patch: Partial<TrackSettings>) {
     this.validate(track);
+    if (
+      patch.start !== undefined &&
+      (!Number.isFinite(patch.start) || patch.start < 0 || patch.start > 7200)
+    )
+      throw Error('Track start must be between 0 and 7200 seconds.');
     if (
       patch.alpha !== undefined &&
       (!Number.isFinite(patch.alpha) || patch.alpha < 0 || patch.alpha > 1)
@@ -68,7 +75,11 @@ export class AnimationTracks {
     const blendChanged = patch.additive !== undefined && patch.additive !== settings.additive;
     Object.assign(settings, patch);
     if (track === 0) settings.additive = false;
-    if (this.sequences.some((clips) => clips.length > 1)) {
+    if (
+      patch.start !== undefined ||
+      this.settings.some((s) => s.start) ||
+      this.sequences.some((clips) => clips.length > 1)
+    ) {
       this.seekAll(this.cursor);
       return;
     }
@@ -128,7 +139,9 @@ export class AnimationTracks {
       0,
       ...this.sequences.map((_clips, track) => {
         const speed = this.settings[track].speed;
-        return speed > 0 ? (this.layout(track).at(-1)?.end ?? 0) / speed : 0;
+        return speed > 0 && this.sequences[track].length
+          ? (this.settings[track].start ?? 0) + (this.layout(track).at(-1)?.end ?? 0) / speed
+          : 0;
       }),
     );
   }
@@ -148,11 +161,11 @@ export class AnimationTracks {
     const events = this.sequences
       .flatMap((_clips, track) => {
         const speed = this.settings[track].speed;
-        return speed > 0
-          ? this.layout(track)
-              .slice(1)
-              .map((clip) => ({ track, clip, time: clip.start / speed }))
-          : [];
+        const offset = this.settings[track].start ?? 0;
+        return this.layout(track).flatMap((clip, index) => {
+          if ((index === 0 && offset === 0) || (index > 0 && speed === 0)) return [];
+          return [{ track, clip, first: index === 0, time: offset + clip.start / (speed || 1) }];
+        });
       })
       .filter(
         (event) => (event.time > from || (includeOrigin && event.time === 0)) && event.time <= to,
@@ -161,7 +174,7 @@ export class AnimationTracks {
     let current = from;
     for (const event of events) {
       this.model.update(event.time - current);
-      this.startClip(event.track, event.clip);
+      this.startClip(event.track, event.clip, event.first);
       this.model.update(0);
       current = event.time;
     }
@@ -177,7 +190,7 @@ export class AnimationTracks {
     this.model.skeleton.setToSetupPose();
     this.sequences.forEach((_clips, track) => {
       const first = this.layout(track)[0];
-      if (first) this.startClip(track, first, true);
+      if (first && !this.settings[track].start) this.startClip(track, first, true);
     });
     this.model.update(0);
     this.progress(0, time, true);

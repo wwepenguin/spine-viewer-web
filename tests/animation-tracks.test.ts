@@ -309,3 +309,22 @@ test('audio-clock sampling preserves mixed poses through offsets, loops and back
     }
   }
 });
+test('delayed track starts at its offset and continuous playback matches direct seeking', () => {
+  const { tracks, skeleton } = fixture();
+  tracks.setSequence(0, [
+    { name: 'walk', mixIn: 0 },
+    { name: 'lean', mixIn: 0.2 },
+  ]);
+  tracks.configure(0, { start: 2 });
+  assert.equal(tracks.duration, 3.8);
+  tracks.seekAll(1);
+  assert.equal(skeleton.findBone('body')!.x, 0);
+  tracks.advance(1, 1.5);
+  const x = skeleton.findBone('body')!.x;
+  assert.ok(Math.abs(x - 5) < 0.001);
+  tracks.seekAll(2.5);
+  assert.equal(skeleton.findBone('body')!.x, x);
+  tracks.seekAll(2.9);
+  assert.ok(skeleton.findBone('body')!.x > 10);
+  assert.throws(() => tracks.configure(0, { start: -1 }), /Track start/);
+});
