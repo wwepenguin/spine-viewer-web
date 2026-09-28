@@ -390,11 +390,11 @@
                 </div>
                 <dl>
                   <div>
-                    <dt>Avg. frame interval</dt>
+                    <dt>Avg. update interval</dt>
                     <dd id="perfFrame">—</dd>
                   </div>
                   <div>
-                    <dt>P95 frame interval</dt>
+                    <dt>P95 update interval</dt>
                     <dd id="perfP95">—</dd>
                   </div>
                   <div>
@@ -435,10 +435,11 @@
                   ><button id="perfReset" class="text-button">Reset</button>
                 </div>
                 <p class="performance-note">
-                  Updates every 0.5s. Draw Calls: average / peak, including debug overlays. CPU
-                  excludes GPU execution. Triangles are counted before clipping. Heap covers the
-                  whole page. Texture memory estimates RGBA base levels, excluding mipmaps; it is
-                  not total GPU memory.
+                  FPS counts rendered frames. Paused views redraw only on change. Update intervals
+                  describe the ticker cadence. Draw Calls: average / peak per rendered frame,
+                  including debug overlays. CPU excludes GPU execution. Triangles are counted before
+                  clipping. Heap covers the whole page. Texture memory estimates RGBA base levels,
+                  excluding mipmaps; it is not total GPU memory.
                 </p>
               </div>
             </details>
@@ -453,7 +454,7 @@
             <strong>Drop to load assets</strong><span>JSON / SKEL ＋ ATLAS ＋ PNG / WebP</span>
           </div>
           <div class="viewport-footer">
-            <span>Click a skeleton to select · Drag to pan · Scroll to zoom</span>
+            <span>Drag a character to transform · Shift + drag to pan · Scroll to zoom</span>
             <div class="viewport-tools">
               <span id="rendererInfo">WebGL</span
               ><button
@@ -572,7 +573,8 @@
         </div>
         <p class="timeline-help">
           &lt; / &gt;: previous / next frame · Click + to edit a sequence · Scroll to zoom · Drag
-          tracks to pan · Drag ruler or playhead to scrub · Shift + drag / middle drag to pan
+          clips to move a sequence · Drag ruler or playhead to scrub · Shift + drag / middle drag to
+          pan
         </p>
       </section>
     </main>

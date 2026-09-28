@@ -15,6 +15,9 @@ export class SkeletonPerformance {
   cpu: number[] = [];
   drawCounts: number[] = [];
   drawCalls = 0;
+  private lastRendered = 0;
+  private rendered = 0;
+  private statsFrame = -1;
   asset?: SkeletonViewer['asset'];
   gl?: WebGLRenderingContext | WebGL2RenderingContext;
   constructor(viewer: SkeletonViewer, doc: Document) {
@@ -37,6 +40,9 @@ export class SkeletonPerformance {
     this.reset();
   }
   reset() {
+    this.lastRendered = this.viewer.renderedFrames;
+    this.rendered = 0;
+    this.statsFrame = -1;
     this.previous = null;
     this.frameStart = null;
     this.elapsed = 0;
@@ -112,10 +118,13 @@ export class SkeletonPerformance {
   end() {
     if (!this.enabled || this.doc.hidden || this.frameStart === null) return;
     this.cpu.push(performance.now() - this.frameStart);
-    this.drawCounts.push(this.drawCalls);
+    const rendered = this.viewer.renderedFrames - this.lastRendered;
+    this.lastRendered = this.viewer.renderedFrames;
+    this.rendered += rendered;
+    if (rendered) this.drawCounts.push(this.drawCalls);
     this.frameStart = null;
     if (this.elapsed < 500) return;
-    const fps = (this.intervals.length * 1000) / this.elapsed;
+    const fps = (this.rendered * 1000) / this.elapsed;
     const sorted = [...this.intervals].sort((a, b) => a - b);
     this.$('perfFps').textContent = fps.toFixed(1) + ' FPS';
     this.$('perfFrame').textContent = (this.elapsed / this.intervals.length).toFixed(2) + ' ms';
@@ -123,9 +132,9 @@ export class SkeletonPerformance {
     this.$('perfCpu').textContent =
       (this.cpu.reduce((sum, n) => sum + n, 0) / this.cpu.length).toFixed(2) + ' ms';
     this.$('perfDrawCalls').textContent =
-      (this.drawCounts.reduce((sum, n) => sum + n, 0) / this.drawCounts.length).toFixed(1) +
+      (this.drawCounts.reduce((sum, n) => sum + n, 0) / (this.drawCounts.length || 1)).toFixed(1) +
       ' / ' +
-      Math.max(...this.drawCounts);
+      Math.max(0, ...this.drawCounts);
     const heap = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
       ?.usedJSHeapSize;
     this.$('perfHeap').textContent =
@@ -144,15 +153,19 @@ export class SkeletonPerformance {
         )
         .join(' '),
     );
-    this.updateModel();
+    if (this.statsFrame !== this.viewer.renderedFrames) {
+      this.updateModel();
+      this.statsFrame = this.viewer.renderedFrames;
+    }
     this.$('perfStatus').textContent = (
       this.viewer.music.loaded
         ? this.viewer.music.paused
         : this.viewer.items.every((item) => item.paused)
     )
-      ? 'Paused · Still rendering'
+      ? 'Idle · Render on change'
       : 'Live · Entire stage';
     this.elapsed = 0;
+    this.rendered = 0;
     this.intervals = [];
     this.cpu = [];
     this.drawCounts = [];

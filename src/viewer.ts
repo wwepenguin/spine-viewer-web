@@ -32,6 +32,22 @@ export interface SceneItem {
   startAt: number;
 }
 export class SkeletonViewer {
+  private dirty = true;
+  renderedFrames = 0;
+  get animating() {
+    return this.music.loaded
+      ? !this.music.paused
+      : this.items.some(
+          (item) =>
+            !item.paused &&
+            item.speed > 0 &&
+            item.animationTracks.sequences.some((clips) => clips.length),
+        );
+  }
+  invalidate() {
+    this.dirty = true;
+    if (this.app) this.app.ticker.maxFPS = 60;
+  }
   transformMode: 'move' | 'rotate' | 'scale' = 'move';
   app: PIXI.Application;
   world: PIXI.Container;
@@ -49,6 +65,7 @@ export class SkeletonViewer {
     return this.music.loaded ? this.music.paused : (this.active?.paused ?? true);
   }
   set paused(value: boolean) {
+    this.invalidate();
     if (this.music.loaded) {
       if (value) this.music.pause();
       else void this.music.play();
@@ -58,6 +75,7 @@ export class SkeletonViewer {
     return this.music.loaded ? this.music.rate : (this.active?.speed ?? 1);
   }
   set speed(value: number) {
+    this.invalidate();
     if (this.music.loaded) this.music.setRate(value);
     else if (this.active) this.active.speed = value;
   }
@@ -150,6 +168,20 @@ export class SkeletonViewer {
       }
     }).observe(mount);
     this.app.ticker.add(() => this.tick(Math.min(this.app.ticker.deltaMS / 1000, 0.05)));
+    this.app.ticker.remove(this.app.render, this.app);
+    this.app.ticker.add(
+      () => {
+        if (this.dirty) {
+          this.app.render();
+          this.renderedFrames++;
+          this.dirty = false;
+        }
+        this.app.ticker.maxFPS = this.animating ? 60 : 10;
+      },
+      undefined,
+      PIXI.UPDATE_PRIORITY.LOW,
+    );
+    this.app.view.addEventListener('webglcontextrestored', () => this.invalidate());
     this.attachGestures();
     this.music.onChange = () => {
       if (this.music.loaded) this.syncMusic(true);
@@ -302,6 +334,7 @@ export class SkeletonViewer {
     this.onChange?.();
   }
   setAllPaused(paused: boolean) {
+    this.invalidate();
     if (this.music.loaded) {
       this.paused = paused;
       return;
@@ -390,6 +423,7 @@ export class SkeletonViewer {
     this.onChange?.();
   }
   setDebug(flags: DebugFlags) {
+    this.invalidate();
     this.debugFlags = { ...flags };
     if (!this.model) return;
     const debug = new SpineDebugRenderer();
@@ -560,6 +594,7 @@ export class SkeletonViewer {
     this.fit();
   }
   setTextureMode(pma: boolean, linear: boolean) {
+    this.invalidate();
     if (!this.asset) return;
     for (const item of this.items) {
       item.asset.source.pma = pma;
@@ -572,6 +607,7 @@ export class SkeletonViewer {
     }
   }
   drawHighlight() {
+    this.invalidate();
     const g = this.highlight;
     g.clear();
     g.position.set(0, 0);
@@ -675,6 +711,10 @@ export class SkeletonViewer {
     this.music.clear();
   }
   tick(dt: number) {
+    if (!this.animating) {
+      if (this.dirty) this.onTick?.();
+      return;
+    }
     if (this.music.loaded) {
       this.syncMusic();
       this.onTick?.();
@@ -811,6 +851,11 @@ export class SkeletonViewer {
   snapshot() {
     const e = this.current();
     return {
+      rendering: {
+        frames: this.renderedFrames,
+        idle: !this.animating,
+        texturePages: new Set(this.items.flatMap((i) => [...i.asset.textures])).size,
+      },
       music: {
         name: this.music.name,
         duration: this.music.duration,
