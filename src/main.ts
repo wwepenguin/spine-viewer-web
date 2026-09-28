@@ -243,6 +243,10 @@ import type { AssetCatalog, SkeletonAsset } from './types';
     if (!viewer) return;
     const current = viewer.current();
     const music = viewer.music;
+    $('musicVolume').value = String(Math.round(music.volume * 100));
+    $('musicVolumeValue').textContent = $('musicVolume').value + '%';
+    $('musicMute').checked = music.muted;
+    $('musicLoop').checked = music.loop;
     $('musicName').textContent = music.name || 'Choose a local MP3 or WAV file.';
     $('musicDuration').textContent = music.loaded ? `${music.duration.toFixed(2)} s` : 'No audio';
     $('musicStatus').textContent = music.loaded

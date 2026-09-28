@@ -35,6 +35,25 @@ export class MusicTransport {
   peaks = new Float32Array();
   volume = 0.8;
   muted = false;
+  markers: { time: number; label: string }[] = [];
+  bpm = 120;
+  beatOffset = 0;
+  range = { start: 0, end: 0, enabled: false };
+  setRange(start: number, end: number, enabled: boolean) {
+    if (
+      !Number.isFinite(start) ||
+      !Number.isFinite(end) ||
+      start < 0 ||
+      end > this.duration ||
+      end - start < 0.001
+    )
+      throw Error('Loop range requires 0 ≤ A < B ≤ audio duration.');
+    const resume = this.playing;
+    this.pause(false);
+    this.range = { start, end, enabled };
+    if (resume) void this.play();
+    else this.onChange?.();
+  }
   onChange?: () => void;
   onError?: (error: unknown) => void;
   constructor(private readonly createContext: () => AudioContext = () => new AudioContext()) {}
@@ -58,7 +77,7 @@ export class MusicTransport {
     this.offset = time;
     this.startedAt = this.context?.currentTime ?? 0;
     this.repeating = value;
-    if (this.source) this.source.loop = value;
+    if (this.source) this.source.loop = value || this.range.enabled;
     this.onChange?.();
   }
   get time() {
@@ -67,7 +86,9 @@ export class MusicTransport {
       (this.source && this.context
         ? (this.context.currentTime - this.startedAt) * this.playbackRate
         : 0);
-    return this.repeating && this.duration && this.playing
+    if (this.range.enabled && this.playing && time >= this.range.end)
+      return this.range.start + ((time - this.range.start) % (this.range.end - this.range.start));
+    return this.repeating && !this.range.enabled && this.duration && this.playing
       ? time % this.duration
       : Math.min(time, this.duration);
   }
@@ -88,6 +109,8 @@ export class MusicTransport {
     this.name = file.name;
     this.file = file;
     this.offset = 0;
+    this.range = { start: 0, end: buffer.duration, enabled: false };
+    this.markers = [];
     this.onChange?.();
     return true;
   }
@@ -103,6 +126,8 @@ export class MusicTransport {
   async play() {
     if (!this.buffer || this.playing) return;
     if (this.offset >= this.duration) this.offset = 0;
+    if (this.range.enabled && (this.offset < this.range.start || this.offset >= this.range.end))
+      this.offset = this.range.start;
     const ticket = ++this.ticket;
     this.playing = true;
     this.onChange?.();
@@ -117,7 +142,9 @@ export class MusicTransport {
       const source = context.createBufferSource();
       source.buffer = this.buffer;
       source.playbackRate.value = this.playbackRate;
-      source.loop = this.repeating;
+      source.loop = this.repeating || this.range.enabled;
+      source.loopStart = this.range.enabled ? this.range.start : 0;
+      source.loopEnd = this.range.enabled ? this.range.end : this.duration;
       source.connect(this.gain);
       this.source = source;
       this.startedAt = context.currentTime;
@@ -174,6 +201,8 @@ export class MusicTransport {
     this.peaks = new Float32Array();
     this.name = '';
     this.file = undefined;
+    this.markers = [];
+    this.range = { start: 0, end: 0, enabled: false };
     this.offset = 0;
     this.onChange?.();
   }

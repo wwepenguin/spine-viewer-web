@@ -26,7 +26,17 @@ export interface ProjectSnapshot {
   actors: { source: SkeletonAsset['source']; state: ActorState }[];
   selected: number;
   audio?: File;
-  music: { time: number; rate: number; loop: boolean; volume: number; muted: boolean };
+  music: {
+    time: number;
+    rate: number;
+    loop: boolean;
+    volume: number;
+    muted: boolean;
+    markers?: { time: number; label: string }[];
+    bpm?: number;
+    beatOffset?: number;
+    range?: { start: number; end: number; enabled: boolean };
+  };
 }
 export function captureProject(viewer: SkeletonViewer): ProjectSnapshot {
   return {
@@ -59,6 +69,10 @@ export function captureProject(viewer: SkeletonViewer): ProjectSnapshot {
       loop: viewer.music.loop,
       volume: viewer.music.volume,
       muted: viewer.music.muted,
+      markers: structuredClone(viewer.music.markers),
+      bpm: viewer.music.bpm,
+      beatOffset: viewer.music.beatOffset,
+      range: { ...viewer.music.range },
     },
   };
 }
@@ -200,6 +214,8 @@ export function decodeProject(bytes: Uint8Array): ProjectSnapshot {
     },
   );
   const m = manifest.music;
+  if (m.markers !== undefined && (!Array.isArray(m.markers) || m.markers.length > 1000))
+    throw Error('Invalid markers.');
   return {
     actors,
     selected: Math.floor(finite(manifest.selected, -1, Math.max(0, actors.length - 1))),
@@ -210,6 +226,26 @@ export function decodeProject(bytes: Uint8Array): ProjectSnapshot {
       loop: bool(m.loop),
       volume: finite(m.volume, 0, 1),
       muted: bool(m.muted),
+      ...(m.markers !== undefined
+        ? {
+            markers: m.markers.map((marker: { time: number; label: string }) => ({
+              time: finite(marker.time, 0),
+              label: string(marker.label),
+            })),
+          }
+        : {}),
+      ...(m.bpm !== undefined
+        ? { bpm: finite(m.bpm, 20, 400), beatOffset: finite(m.beatOffset, 0) }
+        : {}),
+      ...(m.range !== undefined
+        ? {
+            range: {
+              start: finite(m.range.start, 0),
+              end: finite(m.range.end, 0),
+              enabled: bool(m.range.enabled),
+            },
+          }
+        : {}),
     },
   };
 }
@@ -242,6 +278,11 @@ export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSn
     music.setRate(snapshot.music.rate);
     music.loop = snapshot.music.loop;
     music.setVolume(snapshot.music.volume, snapshot.music.muted);
+    music.markers = structuredClone(snapshot.music.markers ?? []);
+    music.bpm = snapshot.music.bpm ?? 120;
+    music.beatOffset = snapshot.music.beatOffset ?? 0;
+    const range = snapshot.music.range;
+    if (range && music.loaded) music.setRange(range.start, range.end, range.enabled);
     music.seek(snapshot.music.time);
     for (const { source, state } of snapshot.actors) {
       const data: AssetCatalog = { entries: source.entries, skeletons: [], atlases: [] };

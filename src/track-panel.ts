@@ -331,11 +331,59 @@ export class TrackPanel {
   }
   private renderMusic() {
     const music = this.viewer.music;
+    this.bpm = music.bpm;
+    this.beatOffset = music.beatOffset;
+    this.markers = music.markers.map((m) => m.time);
+    $('musicLane').querySelector('.music-cues')?.remove();
     $('musicLabel').textContent = music.loaded ? `Music · ${music.name}` : 'Music · No audio';
     $('musicLabel').title = music.name || 'Import audio in the Music panel';
     $('musicEmpty').hidden = music.loaded;
     $('musicWave').setAttribute('d', '');
     if (!music.loaded) return;
+    const cues = document.createElement('div');
+    cues.className = 'music-cues';
+    const line = (time: number, label: string, kind: string) => {
+      if (time < this.page || time > this.page + this.span) return;
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = `cue ${kind}`;
+      el.style.left = `${((time - this.page) / this.span) * 100}%`;
+      el.textContent = label;
+      el.title = `${label} · ${time.toFixed(3)} s`;
+      el.setAttribute('aria-label', `Seek ${label} at ${time.toFixed(3)} seconds`);
+      el.onpointerdown = (e) => e.stopPropagation();
+      el.onclick = () => {
+        this.viewer.paused = true;
+        this.viewer.seekAll(time);
+      };
+      cues.append(el);
+    };
+    const beat = 60 / music.bpm,
+      stride = Math.max(1, Math.ceil(this.span / beat / 120));
+    for (
+      let i = Math.max(0, Math.ceil((this.page - music.beatOffset) / beat));
+      music.beatOffset + i * beat <= this.page + this.span;
+      i += stride
+    ) {
+      const time = music.beatOffset + i * beat;
+      if (time > music.duration) break;
+      line(time, '', 'beat');
+    }
+    music.markers.forEach((m) => line(m.time, m.label, 'marker'));
+    if (music.range.enabled) {
+      line(music.range.start, 'A', 'range-cue');
+      line(music.range.end, 'B', 'range-cue');
+      const start = Math.max(this.page, music.range.start),
+        end = Math.min(this.page + this.span, music.range.end);
+      if (end > start) {
+        const range = document.createElement('div');
+        range.className = 'range-shade';
+        range.style.left = `${((start - this.page) / this.span) * 100}%`;
+        range.style.width = `${((end - start) / this.span) * 100}%`;
+        cues.prepend(range);
+      }
+    }
+    $('musicLane').append(cues);
     const commands: string[] = [];
     for (let x = 0; x < 1000; x += 2) {
       const start = this.page + (x / 1000) * this.span;
@@ -389,6 +437,7 @@ export class TrackPanel {
       row.lane.replaceChildren();
       row.lane.removeAttribute('title');
       const schedule = this.viewer.animationTracks?.layout(index) ?? [];
+      if (!schedule.length) return;
       const speed = this.viewer.trackSettings[index].speed;
       const scale = speed > 0 ? speed : 1;
       schedule.forEach((clip, clipIndex) => {

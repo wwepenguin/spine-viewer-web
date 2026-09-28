@@ -1492,3 +1492,63 @@ kbd {
 .animation-clip {
   cursor: grab;
 }
+.music-tools input[type='number'] {
+  width: 70px;
+  padding: 4px;
+}
+.music-tools label {
+  font-size: 11px;
+}
+.cue-list {
+  max-height: 160px;
+  overflow-y: auto;
+}
+.cue-row {
+  display: flex;
+  gap: 4px;
+  margin: 5px 0;
+}
+.cue-row input[type='text'] {
+  min-width: 50px;
+  width: 100%;
+  padding: 3px;
+}
+.music-cues {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.music-cues .cue {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border: 0;
+  border-left: 1px solid #a88cdd;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font: 10px monospace;
+  padding: 0 3px;
+  max-width: 110px;
+  overflow: hidden;
+  text-align: left;
+  pointer-events: auto;
+}
+.music-cues .beat {
+  pointer-events: none;
+  opacity: 0.35;
+}
+.music-cues .marker {
+  height: 20px;
+  background: #3b2657cc;
+}
+.music-cues .range-cue {
+  color: #ffdf78;
+  border-color: #ffdf78;
+}
+.range-shade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #d8b84222;
+}
