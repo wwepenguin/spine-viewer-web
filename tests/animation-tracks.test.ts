@@ -1,3 +1,4 @@
+import { animationTime } from '../src/music';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -285,4 +286,26 @@ test('zero-length pose clips transition without stalling and multi-track setting
   tracks.seekAll(1);
   assert.equal(state.getCurrent(0).animation.name, 'lean');
   close(state.getCurrent(0).mixDuration, 0);
+});
+
+test('audio-clock sampling preserves mixed poses through offsets, loops and backward scrubbing', () => {
+  const first = fixture(),
+    second = fixture(),
+    expected = fixture();
+  for (const item of [first, second, expected])
+    item.tracks.setSequence(0, [
+      { name: 'walk', mixIn: 0 },
+      { name: 'lean', mixIn: 0.2 },
+    ]);
+  for (const musicTime of [0, 0.2, 0.8, 0.9, 1, 1.7, 1.9, 2.3, 2.9, 3.8, 0.85, 0]) {
+    for (const [item, start] of [
+      [first, 0],
+      [second, 2],
+    ] as const) {
+      const local = animationTime(musicTime, start, item.tracks.duration, item.tracks.looping);
+      item.tracks.sample(local);
+      expected.tracks.seekAll(local);
+      close(item.skeleton.findBone('body').x, expected.skeleton.findBone('body').x);
+    }
+  }
 });

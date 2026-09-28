@@ -1,3 +1,4 @@
+import { MusicTransport, animationTime } from './music';
 import { stepFrameTime } from './frame-step';
 import { AnimationTracks, type AnimationClip } from './animation-tracks';
 import {
@@ -14,6 +15,20 @@ import {
   type Bounds,
   type Highlight,
 } from './types';
+export interface SceneItem {
+  id: number;
+  name: string;
+  model: RuntimeSpine;
+  asset: SkeletonAsset;
+  animationTracks: AnimationTracks;
+  paused: boolean;
+  speed: number;
+  timelineTime: number;
+  track: number;
+  mix: number;
+  selectedSlot: string | null;
+  startAt: number;
+}
 export class SkeletonViewer {
   app: PIXI.Application;
   world: PIXI.Container;
@@ -22,23 +37,71 @@ export class SkeletonViewer {
   points: PIXI.Graphics;
   mount: HTMLElement;
   marker: HTMLElement;
-  paused = false;
-  speed = 1;
-  timelineTime = 0;
+  music = new MusicTransport();
+  items: SceneItem[] = [];
+  active?: SceneItem;
+  private nextId = 1;
+  onSelectionChange?: () => void;
+  get paused() {
+    return this.music.loaded ? this.music.paused : (this.active?.paused ?? true);
+  }
+  set paused(value: boolean) {
+    if (this.music.loaded) {
+      if (value) this.music.pause();
+      else void this.music.play();
+    } else if (this.active) this.active.paused = value;
+  }
+  get speed() {
+    return this.music.loaded ? this.music.rate : (this.active?.speed ?? 1);
+  }
+  set speed(value: number) {
+    if (this.music.loaded) this.music.setRate(value);
+    else if (this.active) this.active.speed = value;
+  }
+  get timelineTime() {
+    return this.music.loaded ? this.music.time : (this.active?.timelineTime ?? 0);
+  }
+  set timelineTime(value: number) {
+    if (this.music.loaded) this.music.seek(value);
+    else if (this.active) this.active.timelineTime = value;
+  }
   get loop() {
     return this.trackSettings[this.track]?.loop ?? true;
   }
   set loop(value: boolean) {
     this.animationTracks?.configure(this.track, { loop: value });
   }
-  selectedSlot: string | null = null;
-  track = 0;
-  mix = 0.2;
+  get selectedSlot() {
+    return this.active?.selectedSlot ?? null;
+  }
+  set selectedSlot(value: string | null) {
+    if (this.active) this.active.selectedSlot = value;
+  }
+  get track() {
+    return this.active?.track ?? 0;
+  }
+  set track(value: number) {
+    if (this.active) this.active.track = value;
+  }
+  get mix() {
+    return this.active?.mix ?? 0.2;
+  }
+  set mix(value: number) {
+    if (this.active) this.active.mix = value;
+  }
   zoom = 1;
-  // These are assigned atomically by setModel; all UI model actions follow successful loading.
-  model!: RuntimeSpine;
-  asset!: SkeletonAsset;
-  animationTracks?: AnimationTracks;
+  get model() {
+    return this.active?.model as RuntimeSpine;
+  }
+  get asset() {
+    return this.active?.asset as SkeletonAsset;
+  }
+  get animationTracks() {
+    return this.active?.animationTracks;
+  }
+  set animationTracks(value: AnimationTracks | undefined) {
+    if (this.active && value) this.active.animationTracks = value;
+  }
   get trackSettings() {
     return this.animationTracks?.settings ?? [];
   }
@@ -85,35 +148,134 @@ export class SkeletonViewer {
     }).observe(mount);
     this.app.ticker.add(() => this.tick(Math.min(this.app.ticker.deltaMS / 1000, 0.05)));
     this.attachGestures();
+    this.music.onChange = () => {
+      if (this.music.loaded) this.syncMusic(true);
+      this.onChange?.();
+    };
   }
   setModel(asset: SkeletonAsset) {
-    const next = createSpine(asset.spineData);
-    next.autoUpdate = false;
-    const skin = asset.spineData.defaultSkin || asset.spineData.skins[0];
-    if (skin) {
-      next.skeleton.setSkin(skin);
-      next.skeleton.setSlotsToSetupPose();
+    this.setScene([{ asset, name: asset.fileName }]);
+  }
+  private createItem(asset: SkeletonAsset, name: string): SceneItem {
+    const model = createSpine(asset.spineData);
+    try {
+      model.autoUpdate = false;
+      const skin = asset.spineData.defaultSkin || asset.spineData.skins[0];
+      if (skin) {
+        model.skeleton.setSkin(skin);
+        model.skeleton.setSlotsToSetupPose();
+      }
+      model.update(0);
+      const animationTracks = new AnimationTracks(model, asset.spineData.animations);
+      const first =
+        asset.spineData.animations.find((a) => a.name === 'walk') || asset.spineData.animations[0];
+      if (first) animationTracks.play(0, first.name, 0);
+      return {
+        id: this.nextId++,
+        name,
+        model,
+        asset,
+        animationTracks,
+        paused: !first,
+        speed: 1,
+        timelineTime: 0,
+        track: 0,
+        mix: 0.2,
+        selectedSlot: null,
+        startAt: 0,
+      };
+    } catch (error) {
+      model.destroy({ children: true, texture: false, baseTexture: false });
+      throw error;
     }
-    next.update(0);
-    if (this.model) {
-      this.model.destroy({ children: true, texture: false, baseTexture: false });
-      this.asset.dispose();
+  }
+  private disposeItem(item: SceneItem) {
+    item.model.debug = null;
+    item.model.destroy({ children: true, texture: false, baseTexture: false });
+    item.asset.dispose();
+  }
+  setScene(assets: { asset: SkeletonAsset; name: string }[]) {
+    const next: SceneItem[] = [];
+    try {
+      for (const { asset, name } of assets) next.push(this.createItem(asset, name));
+    } catch (error) {
+      for (const item of next)
+        item.model.destroy({ children: true, texture: false, baseTexture: false });
+      for (const { asset } of assets) asset.dispose();
+      throw error;
     }
-    this.asset = asset;
-    this.model = next;
-    this.track = 0;
-    this.animationTracks = new AnimationTracks(next, asset.spineData.animations);
-    this.selectedSlot = null;
-    this.world.addChild(next);
-    this.world.addChild(this.points);
-    this.world.addChild(this.highlight);
-    this.setDebug(this.debugFlags);
-    const first =
-      asset.spineData.animations.find((a) => a.name === 'walk') || asset.spineData.animations[0];
-    if (first) this.play(first.name);
-    else this.setup();
+    for (const item of this.items) this.disposeItem(item);
+    this.items = next;
+    for (const item of next) this.world.addChild(item.model);
+    this.world.addChild(this.points, this.highlight);
+    this.active = undefined;
+    this.selectItem(next[0]?.id);
+    this.arrange();
+  }
+  addModel(asset: SkeletonAsset, name = asset.fileName) {
+    let item: SceneItem;
+    try {
+      item = this.createItem(asset, name);
+    } catch (error) {
+      asset.dispose();
+      throw error;
+    }
+    const edge = this.items.length
+      ? Math.max(...this.items.map((i) => this.itemBounds(i).maxX))
+      : 0;
+    this.items.push(item);
+    this.world.addChild(item.model);
+    this.world.addChild(this.points, this.highlight);
+    const bounds = this.itemBounds(item);
+    item.model.position.set(edge + (this.items.length > 1 ? 80 : 0) - bounds.minX, -bounds.maxY);
+    this.selectItem(item.id);
     this.fit();
+  }
+  selectItem(id?: number) {
+    const next = this.items.find((item) => item.id === id);
+    if (this.active) this.active.model.debug = null;
+    this.active = next;
+    this.lastHighlight = undefined;
+    this.setDebug(this.debugFlags);
+    if (this.music.loaded) this.syncMusic(true);
     this.drawHighlight();
+    this.onSelectionChange?.();
+    this.onChange?.();
+  }
+  removeSelected() {
+    const item = this.active;
+    if (!item) return;
+    const index = this.items.indexOf(item);
+    this.items.splice(index, 1);
+    this.active = undefined;
+    this.disposeItem(item);
+    this.selectItem(this.items[Math.min(index, this.items.length - 1)]?.id);
+    if (this.items.length) this.fit();
+  }
+  moveSelected(x: number, y: number) {
+    if (!this.active || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    this.model.position.set(x, y);
+    this.drawHighlight();
+    this.onChange?.();
+  }
+  arrange() {
+    let x = 0;
+    for (const item of this.items) {
+      item.model.position.set(0, 0);
+      const b = this.itemBounds(item);
+      item.model.position.set(x - b.minX, -b.maxY);
+      x += Math.max(40, b.maxX - b.minX) + 80;
+    }
+    this.fit();
+    this.onChange?.();
+  }
+  setAllPaused(paused: boolean) {
+    if (this.music.loaded) {
+      this.paused = paused;
+      return;
+    }
+    for (const item of this.items) item.paused = paused;
+    this.onChange?.();
   }
   current() {
     return this.model?.state.getCurrent(this.track);
@@ -125,11 +287,12 @@ export class SkeletonViewer {
     if (!this.asset.spineData.animations.some((a) => a.name === name))
       throw Error(`Animation not found: ${name}`);
     // Timeline clips share an origin. Editing the composition starts a fresh preview.
-    this.timelineTime = 0;
+    if (!this.music.loaded) this.timelineTime = 0;
     this.animationTracks.restartAll();
     const entry = this.animationTracks.play(track, name, this.mix);
     this.track = track;
-    this.paused = false;
+    if (this.music.loaded) this.syncMusic(true);
+    else this.paused = false;
     this.drawHighlight();
     this.onChange?.();
     return entry;
@@ -137,7 +300,8 @@ export class SkeletonViewer {
   setSequence(clips: AnimationClip[], track = this.track) {
     this.animationTracks?.setSequence(track, clips);
     this.track = track;
-    this.timelineTime = 0;
+    if (this.music.loaded) this.syncMusic(true);
+    else this.timelineTime = 0;
     this.drawHighlight();
     this.onChange?.();
   }
@@ -156,16 +320,19 @@ export class SkeletonViewer {
   }
   configureTrack(alpha: number, additive: boolean) {
     this.animationTracks?.configure(this.track, { alpha, additive });
+    if (this.music.loaded) this.syncMusic(true);
     this.drawHighlight();
     this.onChange?.();
   }
   setTrackLoop(track: number, loop: boolean) {
     this.animationTracks?.configure(track, { loop });
+    if (this.music.loaded) this.syncMusic(true);
     this.onChange?.();
   }
   setTrackSpeed(speed: number) {
     this.animationTracks?.configure(this.track, { speed });
-    this.animationTracks?.seekAll(this.timelineTime);
+    if (this.music.loaded) this.syncMusic(true);
+    else this.animationTracks?.seekAll(this.timelineTime);
     this.onChange?.();
   }
   clearTrack(track = this.track) {
@@ -174,6 +341,10 @@ export class SkeletonViewer {
     this.onChange?.();
   }
   restartAllTracks() {
+    if (this.music.loaded) {
+      this.seekAll(0);
+      return;
+    }
     this.timelineTime = 0;
     this.animationTracks?.restartAll();
     this.drawHighlight();
@@ -193,23 +364,38 @@ export class SkeletonViewer {
     if (!this.model) return;
     this.animationTracks = new AnimationTracks(this.model, this.asset.spineData.animations);
     this.model.state.clearTracks();
-    this.timelineTime = 0;
+    if (!this.music.loaded) this.timelineTime = 0;
     this.model.skeleton.setToSetupPose();
     this.model.update(0);
     this.paused = true;
     this.onChange?.();
   }
   seek(time: number) {
+    if (this.music.loaded) {
+      this.seekAll(time);
+      return;
+    }
     if (!this.current()) return;
     this.seekAll(time / (this.current()?.timeScale || 1));
   }
   seekAll(time: number) {
+    if (this.music.loaded) {
+      this.music.seek(time);
+      this.syncMusic(true);
+      this.onChange?.();
+      return;
+    }
     this.animationTracks?.seekAll(time);
     this.timelineTime = time;
     this.drawHighlight();
     this.onChange?.();
   }
   stepFrame(direction: -1 | 1, fps = 30) {
+    if (this.music.loaded) {
+      this.paused = true;
+      this.seekAll(stepFrameTime(this.timelineTime, direction, fps, this.music.duration));
+      return;
+    }
     if (!this.animationTracks || !this.animationTracks.sequences.some((clips) => clips.length))
       return;
     this.paused = true;
@@ -222,7 +408,7 @@ export class SkeletonViewer {
     this.drawHighlight();
     this.onChange?.();
   }
-  geometry(slot: RuntimeSlot) {
+  geometry(slot: RuntimeSlot, asset = this.asset) {
     const attachment = slot.getAttachment();
     const fallback = {
       vertices: [] as number[] | Float32Array,
@@ -238,7 +424,7 @@ export class SkeletonViewer {
     if (attachment.type === 0) {
       vertices = new Float32Array(8);
       attachment.computeWorldVertices(
-        this.asset.spineData.version.startsWith('4.') ? slot : slot.bone,
+        asset.spineData.version.startsWith('4.') ? slot : slot.bone,
         vertices,
         0,
         2,
@@ -269,10 +455,9 @@ export class SkeletonViewer {
     }
     return vertices.length ? { minX, minY, maxX, maxY } : { minX: x, minY: y, maxX: x, maxY: y };
   }
-  fit() {
-    if (!this.model) return;
-    let vertices: number[] = [];
-    for (const slot of this.model.skeleton.slots) {
+  private itemBounds(item: SceneItem) {
+    const vertices: number[] = [];
+    for (const slot of item.model.skeleton.slots) {
       const a = slot.getAttachment();
       if (
         a &&
@@ -281,9 +466,25 @@ export class SkeletonViewer {
         slot.color.a > 0 &&
         (a.color?.a ?? 1) > 0
       )
-        vertices.push(...this.geometry(slot).vertices);
+        vertices.push(...this.geometry(slot, item.asset).vertices);
     }
-    const b = this.bounds(vertices),
+    const b = this.bounds(vertices);
+    return {
+      minX: b.minX + item.model.x,
+      maxX: b.maxX + item.model.x,
+      minY: b.minY + item.model.y,
+      maxY: b.maxY + item.model.y,
+    };
+  }
+  fit() {
+    if (!this.items.length) return;
+    const all = this.items.map((item) => this.itemBounds(item));
+    const b = {
+        minX: Math.min(...all.map((b) => b.minX)),
+        minY: Math.min(...all.map((b) => b.minY)),
+        maxX: Math.max(...all.map((b) => b.maxX)),
+        maxY: Math.max(...all.map((b) => b.maxY)),
+      },
       w = Math.max(40, b.maxX - b.minX),
       h = Math.max(40, b.maxY - b.minY);
     this.fittedBounds = { ...b, width: w, height: h };
@@ -321,7 +522,7 @@ export class SkeletonViewer {
   }
   setTextureMode(pma: boolean, linear: boolean) {
     if (!this.asset) return;
-    for (const t of this.asset.textures) {
+    for (const t of new Set(this.items.flatMap((item) => [...item.asset.textures]))) {
       t.alphaMode = pma ? PIXI.ALPHA_MODES.PMA : PIXI.ALPHA_MODES.UNPACK;
       t.scaleMode = linear ? PIXI.SCALE_MODES.LINEAR : PIXI.SCALE_MODES.NEAREST;
       t.update();
@@ -330,6 +531,8 @@ export class SkeletonViewer {
   drawHighlight() {
     const g = this.highlight;
     g.clear();
+    g.position.copyFrom(this.model?.position ?? { x: 0, y: 0 });
+    this.points.position.copyFrom(g.position);
     this.marker.hidden = true;
     const scale = this.world.scale.x || 1;
     this.axes
@@ -353,6 +556,15 @@ export class SkeletonViewer {
             .lineTo(p.x, p.y + 8 / scale);
         }
       }
+    }
+    if (this.active && this.items.length > 1) {
+      const b = this.itemBounds(this.active);
+      g.lineStyle(1 / scale, 0x68e3c4, 0.7).drawRect(
+        b.minX - this.model.x - 6 / scale,
+        b.minY - this.model.y - 6 / scale,
+        b.maxX - b.minX + 12 / scale,
+        b.maxY - b.minY + 12 / scale,
+      );
     }
     if (!this.selectedSlot || !this.model) return;
     const slot = this.model.skeleton.findSlot(this.selectedSlot);
@@ -385,31 +597,61 @@ export class SkeletonViewer {
       this.selectedSlot +
       (geo.inactive ? ' · Inactive bone' : !geo.attachment ? ' · No attachment' : '');
     this.marker.hidden = false;
-    const x = this.world.x + b.maxX * scale + 10,
-      y = this.world.y + b.minY * scale - 28;
+    const x = this.world.x + (b.maxX + this.model.x) * scale + 10,
+      y = this.world.y + (b.minY + this.model.y) * scale - 28;
     this.marker.style.left =
       Math.max(10, Math.min(x, this.app.screen.width - this.marker.offsetWidth - 10)) + 'px';
     this.marker.style.top = Math.max(60, Math.min(y, this.app.screen.height - 50)) + 'px';
     this.lastHighlight = { ...b, slot: this.selectedSlot, vertexCount: geo.vertices.length };
   }
+  setStartAt(value: number) {
+    if (!this.active || !Number.isFinite(value) || value < 0) return;
+    this.active.startAt = value;
+    if (this.music.loaded) this.syncMusic(true);
+    this.onChange?.();
+  }
+  syncMusic(force = false) {
+    const time = this.music.time;
+    for (const item of this.items) {
+      const tracks = item.animationTracks;
+      const local = animationTime(time, item.startAt, tracks.duration, tracks.looping);
+      tracks.sample(local, force);
+      item.timelineTime = local;
+    }
+    this.drawHighlight();
+  }
+  removeMusic() {
+    for (const item of this.items) item.paused = true;
+    this.music.clear();
+  }
   tick(dt: number) {
-    if (!this.model) return;
-    if (!this.paused && this.animationTracks && this.model.state.tracks.some(Boolean)) {
-      const result = this.animationTracks.advance(this.timelineTime, dt * this.speed);
-      this.timelineTime = result.time;
-      if (result.complete) {
-        this.paused = true;
-        this.onChange?.();
+    if (this.music.loaded) {
+      this.syncMusic();
+      this.onTick?.();
+      return;
+    }
+    let changed = false;
+    for (const item of this.items) {
+      if (!item.paused && item.model.state.tracks.some(Boolean)) {
+        const result = item.animationTracks.advance(item.timelineTime, dt * item.speed);
+        item.timelineTime = result.time;
+        if (result.complete) {
+          item.paused = true;
+          changed = true;
+        }
       }
     }
+    if (changed) this.onChange?.();
     this.drawHighlight();
     this.onTick?.();
   }
   attachGestures() {
     let drag: { x: number; y: number } | null = null;
+    let origin: { x: number; y: number } | undefined;
     const canvas = this.app.view;
     canvas.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 && e.button !== 1) return;
+      origin = e.button === 0 ? { x: e.clientX, y: e.clientY } : undefined;
       canvas.setPointerCapture(e.pointerId);
       drag = { x: e.clientX, y: e.clientY };
       canvas.style.cursor = 'grabbing';
@@ -426,7 +668,20 @@ export class SkeletonViewer {
       drag = null;
       canvas.style.cursor = 'grab';
     };
-    canvas.addEventListener('pointerup', finish);
+    canvas.addEventListener('pointerup', (e) => {
+      if (origin && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) < 4) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left - this.world.x) / this.world.scale.x;
+        const y = (e.clientY - rect.top - this.world.y) / this.world.scale.y;
+        const hit = [...this.items].reverse().find((item) => {
+          const b = this.itemBounds(item);
+          return x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY;
+        });
+        if (hit) this.selectItem(hit.id);
+      }
+      origin = undefined;
+      finish();
+    });
     canvas.addEventListener('pointercancel', finish);
     canvas.style.cursor = 'grab';
     canvas.addEventListener(
@@ -445,6 +700,27 @@ export class SkeletonViewer {
   snapshot() {
     const e = this.current();
     return {
+      music: {
+        name: this.music.name,
+        duration: this.music.duration,
+        time: this.music.time,
+        paused: this.music.paused,
+        rate: this.music.rate,
+        loop: this.music.loop,
+        volume: this.music.volume,
+        muted: this.music.muted,
+      },
+      scene: this.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        selected: item === this.active,
+        x: item.model.x,
+        y: item.model.y,
+        paused: this.music.loaded ? this.music.paused : item.paused,
+        startAt: item.startAt,
+        time: item.timelineTime,
+        animation: item.model.state.getCurrent(item.track)?.animation.name ?? null,
+      })),
       file: this.asset?.fileName || null,
       version: this.asset?.spineData.version || null,
       slots: this.model?.skeleton.slots.map((s) => s.data.name) || [],

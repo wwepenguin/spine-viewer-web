@@ -6,7 +6,7 @@ import * as SpineIO from './assets';
 import { SkeletonViewer } from './viewer';
 import { SkeletonPerformance } from './performance';
 import { registerViewerTools } from './webmcp';
-import type { AssetCatalog } from './types';
+import type { AssetCatalog, SkeletonAsset } from './types';
 (() => {
   document.querySelectorAll<HTMLButtonElement>('.section-toggle').forEach((toggle) => {
     const content = document.getElementById(toggle.getAttribute('aria-controls')!);
@@ -53,50 +53,124 @@ import type { AssetCatalog } from './types';
   async function openCatalog(next: AssetCatalog) {
     if (!next.skeletons.length)
       throw Error('No skeleton found. Select a .json or .skel file with its .atlas and textures.');
+    const id = ++loadingId;
+    controller?.abort();
+    const request = (controller = new AbortController());
     catalog = next;
     options($('skeletonSelect'), catalog.skeletons, (e) => e.path);
     options($('atlasSelect'), catalog.atlases, (e) => e.path);
     chooseAtlas();
-    await loadSelected();
-  }
-  async function loadSelected() {
-    const id = ++loadingId;
-    controller?.abort();
-    controller = new AbortController();
+    $('addToStage').disabled = true;
     $('errorPanel').hidden = true;
     $('loading').hidden = false;
+    const loaded: { asset: SkeletonAsset; name: string }[] = [];
+    const failures: string[] = [];
+    for (const [index, file] of next.skeletons.entries()) {
+      $('loading').textContent = `Loading skeleton ${index + 1} / ${next.skeletons.length}…`;
+      try {
+        const asset = await SpineIO.load(next, file, SpineIO.matchAtlas(next, file), {
+          signal: request.signal,
+          pma: $('pma').checked,
+          linear: $('linear').checked,
+        });
+        loaded.push({ asset, name: file.path });
+      } catch (err) {
+        if (!request.signal.aborted)
+          failures.push(`${file.path}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      if (id !== loadingId) {
+        for (const { asset } of loaded) asset.dispose();
+        return;
+      }
+    }
+    $('loading').hidden = true;
+    $('addToStage').disabled = !catalog.atlases.length;
+    if (loaded.length) {
+      viewer.setScene(loaded);
+      toast(`Loaded ${loaded.length} skeleton${loaded.length === 1 ? '' : 's'} onto the stage`);
+    }
+    if (failures.length)
+      error(
+        new Error(
+          `${loaded.length} loaded, ${failures.length} skipped. Select a skeleton and atlas in Assets, then use Add selected asset to stage to retry.\n\n${failures.join('\n\n')}`,
+        ),
+      );
+  }
+  async function addSelected() {
+    const id = ++loadingId;
+    controller?.abort();
+    const request = (controller = new AbortController());
+    const file = catalog.skeletons[+$('skeletonSelect').value];
+    const atlas = catalog.atlases[+$('atlasSelect').value];
+    $('loading').textContent = 'Adding skeleton…';
+    $('loading').hidden = false;
+    $('addToStage').disabled = true;
     try {
-      const file = catalog.skeletons[+$('skeletonSelect').value],
-        atlas = $('atlasSelect').value === '' ? null : catalog.atlases[+$('atlasSelect').value];
-      const asset = await SpineIO.load(catalog, file, atlas, {
-        signal: controller.signal,
-        pma: $('pma').checked,
-        linear: $('linear').checked,
-      });
+      const asset = await SpineIO.load(
+        catalog,
+        file,
+        $('atlasSelect').value === '' ? null : atlas,
+        {
+          signal: request.signal,
+          pma: $('pma').checked,
+          linear: $('linear').checked,
+        },
+      );
       if (id !== loadingId) {
         asset.dispose();
         return;
       }
-      viewer.track = 0;
-      viewer.setModel(asset);
-      $('flipX').setAttribute('aria-pressed', 'false');
-      $('flipY').setAttribute('aria-pressed', 'false');
-      $('modelName').textContent = asset.fileName;
-      $('formatBadge').textContent = 'SPINE ' + asset.spineData.version;
-      $('skeletonInfo').textContent =
-        `${asset.spineData.bones.length} bones · ${asset.spineData.slots.length} slots`;
-      options($('skinSelect'), asset.spineData.skins, (s) => s.name);
-      $('skinCount').textContent = String(asset.spineData.skins.length);
-      const current = asset.spineData.skins.findIndex((s) => s.name === 'default');
-      if (current >= 0) $('skinSelect').value = String(current);
-      $('slotSearch').value = '';
-      renderSlots();
-      renderAnimations();
-      syncControls();
-      $('loading').hidden = true;
-    } catch (err) {
-      if (id === loadingId && !(err instanceof Error && err.name === 'AbortError')) error(err);
+      viewer.addModel(asset, file.path);
+      $('errorPanel').hidden = true;
+    } finally {
+      if (id === loadingId) {
+        $('loading').hidden = true;
+        $('addToStage').disabled = !catalog.atlases.length;
+      }
     }
+  }
+  function renderScene() {
+    $('sceneCount').textContent = String(viewer.items.length);
+    $('sceneList').replaceChildren(
+      ...viewer.items.map((item, index) => {
+        const button = row(item.name, index);
+        button.setAttribute('aria-selected', String(item === viewer.active));
+        button.onclick = () => viewer.selectItem(item.id);
+        return button;
+      }),
+    );
+    for (const id of [
+      'removeScene',
+      'sceneX',
+      'sceneY',
+      'playScene',
+      'pauseScene',
+      'arrangeScene',
+    ] as const)
+      $(id).disabled = !viewer.items.length;
+  }
+  function selectedModelChanged() {
+    if ($('sequenceDialog').open) $('sequenceDialog').close();
+    const asset = viewer.asset;
+    $('modelName').textContent = viewer.active?.name ?? 'Empty stage';
+    $('formatBadge').textContent = asset ? 'SPINE ' + asset.spineData.version : 'SPINE 3.8';
+    $('skeletonInfo').textContent =
+      `${viewer.items.length} skeleton${viewer.items.length === 1 ? '' : 's'} on stage`;
+    $('flipX').setAttribute('aria-pressed', String((viewer.model?.skeleton.scaleX ?? 1) < 0));
+    $('flipY').setAttribute('aria-pressed', String((viewer.model?.skeleton.scaleY ?? 1) < 0));
+    const skins = asset?.spineData.skins ?? [];
+    options($('skinSelect'), skins, (skin) => skin.name);
+    $('skinCount').textContent = String(skins.length);
+    $('skinSelect').value = String(
+      skins.findIndex((s) => s.name === viewer.model?.skeleton.skin?.name),
+    );
+    $('slotSearch').value = '';
+    $('speed').value = String(viewer.speed);
+    $('mix').value = String(viewer.mix);
+    renderScene();
+    renderSlots();
+    renderAnimations();
+    syncControls();
   }
   function row(name: string, index: number, duration?: number) {
     const button = document.createElement('button');
@@ -167,6 +241,21 @@ import type { AssetCatalog } from './types';
   function syncControls() {
     if (!viewer) return;
     const current = viewer.current();
+    const music = viewer.music;
+    $('musicName').textContent = music.name || 'Choose a local MP3 or WAV file.';
+    $('musicDuration').textContent = music.loaded ? `${music.duration.toFixed(2)} s` : 'No audio';
+    $('musicStatus').textContent = music.loaded
+      ? 'Music sync: playback and seeking control the entire stage.'
+      : 'Without audio, each skeleton plays independently.';
+    $('removeMusic').disabled = !music.loaded;
+    $('musicStart').disabled = !music.loaded || !viewer.active;
+    if (document.activeElement !== $('musicStart'))
+      $('musicStart').value = String(viewer.active?.startAt ?? 0);
+    $('speed').value = String(viewer.speed);
+    if (document.activeElement !== $('sceneX'))
+      $('sceneX').value = String(Math.round(viewer.model?.x ?? 0));
+    if (document.activeElement !== $('sceneY'))
+      $('sceneY').value = String(Math.round(viewer.model?.y ?? 0));
     $('activeAnimation').textContent = `T${viewer.track} · ${current?.animation.name || 'Empty'}`;
     trackPanel.sync();
     sequenceEditor.sync();
@@ -211,12 +300,57 @@ import type { AssetCatalog } from './types';
   const sequenceEditor = new SequenceEditor(viewer);
   const trackPanel = new TrackPanel(viewer, (track) => sequenceEditor.open(track));
   viewer.onChange = syncControls;
+  viewer.onSelectionChange = selectedModelChanged;
   viewer.onTick = () => {
     trackPanel.tick();
   };
   viewer.onViewChange = () => {
     $('zoom').value = String(Math.round(viewer.zoom * 100));
     $('zoomValue').textContent = Math.round(viewer.zoom * 100) + '%';
+  };
+  viewer.music.onError = (err) =>
+    error(new Error(`Audio playback failed: ${err instanceof Error ? err.message : String(err)}`));
+  $('importMusic').onclick = () => $('musicInput').click();
+  let musicImport = 0;
+  $('musicInput').onchange = async () => {
+    const file = $('musicInput').files?.[0];
+    $('musicInput').value = '';
+    if (!file) return;
+    const request = ++musicImport;
+    $('musicStatus').textContent = 'Decoding audio and building waveform…';
+    $('removeMusic').disabled = false;
+    try {
+      if (await viewer.music.load(file)) {
+        viewer.setAllPaused(true);
+        trackPanel.fit();
+        toast('Audio loaded. Press Play to sync the stage.');
+      }
+    } catch (err) {
+      if (request === musicImport)
+        error(
+          new Error(
+            `Unable to load audio. Try a valid MP3 or WAV file. ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+    } finally {
+      if (request === musicImport) syncControls();
+    }
+  };
+  $('removeMusic').onclick = () => {
+    ++musicImport;
+    viewer.removeMusic();
+    syncControls();
+  };
+  $('musicVolume').oninput = $('musicMute').onchange = () => {
+    viewer.music.setVolume(Number($('musicVolume').value) / 100, $('musicMute').checked);
+    $('musicVolumeValue').textContent = $('musicVolume').value + '%';
+  };
+  $('musicLoop').onchange = () => {
+    viewer.music.loop = $('musicLoop').checked;
+  };
+  $('musicStart').oninput = () => {
+    if ($('musicStart').value !== '' && $('musicStart').validity.valid)
+      viewer.setStartAt(Number($('musicStart').value));
   };
   new SkeletonPerformance(viewer, document);
   $('openButton').onclick = () => $('fileInput').click();
@@ -231,13 +365,25 @@ import type { AssetCatalog } from './types';
   $('sampleButton').onclick = safe(async () => {
     await openCatalog(await SpineIO.sample());
   });
-  $('skeletonSelect').onchange = safe(async () => {
-    chooseAtlas();
-    await loadSelected();
-  });
-  $('atlasSelect').onchange = safe(loadSelected);
-  $('skinSelect').onchange = () =>
-    viewer.setSkin(viewer.asset.spineData.skins[+$('skinSelect').value].name);
+  $('skeletonSelect').onchange = chooseAtlas;
+  $('addToStage').onclick = safe(addSelected);
+  $('arrangeScene').onclick = () => viewer.arrange();
+  $('removeScene').onclick = () => viewer.removeSelected();
+  $('playScene').onclick = () => viewer.setAllPaused(false);
+  $('pauseScene').onclick = () => viewer.setAllPaused(true);
+  for (const id of ['sceneX', 'sceneY'] as const)
+    $(id).oninput = () => {
+      const value = Number($(id).value);
+      if ($(id).value !== '' && $(id).validity.valid && viewer.model)
+        viewer.moveSelected(
+          id === 'sceneX' ? value : viewer.model.x,
+          id === 'sceneY' ? value : viewer.model.y,
+        );
+    };
+  $('skinSelect').onchange = () => {
+    const skin = viewer.asset?.spineData.skins[+$('skinSelect').value];
+    if (skin) viewer.setSkin(skin.name);
+  };
   $('slotSearch').oninput = renderSlots;
   $('clearSlot').onclick = () => viewer.selectSlot(null);
   $('copySlot').onclick = safe(async () => {
@@ -356,7 +502,7 @@ import type { AssetCatalog } from './types';
       $('sidebar').classList.remove('open');
     }
   });
-  for (const id of ['slotList', 'animationList'])
+  for (const id of ['slotList', 'animationList', 'sceneList'])
     $(id).addEventListener('keydown', (event) => {
       const buttons = [...$(id).querySelectorAll('button')];
       if (!buttons.length) return;
@@ -368,8 +514,9 @@ import type { AssetCatalog } from './types';
           Math.min(buttons.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)),
         );
         buttons[index].click();
-        buttons[index].focus();
-        buttons[index].scrollIntoView({ block: 'nearest' });
+        const selected = $(id).querySelectorAll('button')[index];
+        selected?.focus();
+        selected?.scrollIntoView({ block: 'nearest' });
       }
     });
   let dragDepth = 0;

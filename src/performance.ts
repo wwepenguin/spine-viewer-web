@@ -145,7 +145,13 @@ export class SkeletonPerformance {
         .join(' '),
     );
     this.updateModel();
-    this.$('perfStatus').textContent = this.viewer.paused ? 'Paused · Still rendering' : 'Live';
+    this.$('perfStatus').textContent = (
+      this.viewer.music.loaded
+        ? this.viewer.music.paused
+        : this.viewer.items.every((item) => item.paused)
+    )
+      ? 'Paused · Still rendering'
+      : 'Live · Entire stage';
     this.elapsed = 0;
     this.intervals = [];
     this.cpu = [];
@@ -155,14 +161,12 @@ export class SkeletonPerformance {
     return (bytes / 1048576).toFixed(1) + ' MiB';
   }
   updateModel() {
-    const model = this.viewer.model,
-      asset = this.viewer.asset;
-    this.$('perfModel').textContent = model
-      ? `${model.skeleton.bones.length} / ${model.skeleton.slots.length}`
-      : '—';
+    const items = this.viewer.items;
+    this.$('perfModel').textContent =
+      `${items.reduce((n, item) => n + item.model.skeleton.bones.length, 0)} / ${items.reduce((n, item) => n + item.model.skeleton.slots.length, 0)}`;
     let attachments = 0,
       triangles = 0;
-    if (model)
+    for (const { model } of items)
       for (const slot of model.skeleton.slots) {
         const a = slot.getAttachment();
         if (
@@ -183,9 +187,9 @@ export class SkeletonPerformance {
       }
     this.$('perfGeometry').textContent = `${attachments} / ${triangles.toLocaleString()}`;
     let bytes = 0;
-    for (const texture of asset?.textures || [])
-      bytes += texture.realWidth * texture.realHeight * 4;
-    this.$('perfTextures').textContent = String(asset?.textures.size || 0);
+    const textures = new Set(items.flatMap((item) => [...item.asset.textures]));
+    for (const texture of textures) bytes += texture.realWidth * texture.realHeight * 4;
+    this.$('perfTextures').textContent = String(textures.size);
     this.$('perfTextureBytes').textContent = this.mib(bytes);
     const canvas = this.viewer.app.view;
     this.$('perfResolution').textContent = `${canvas.width} × ${canvas.height}`;

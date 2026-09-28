@@ -19,6 +19,7 @@ export class SequenceEditor {
     this.viewer.setSequence(clips, this.track);
   }
   open(track: number) {
+    if (!this.viewer.animationTracks) return;
     this.track = track;
     this.viewer.setTrack(track);
     $('sequenceDialog').showModal();

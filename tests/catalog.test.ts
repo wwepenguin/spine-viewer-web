@@ -33,3 +33,32 @@ test('catalog supports binary, atlas.txt, Unicode and nested files', () => {
   assert.equal(matchAtlas(data, data.skeletons[0]), data.atlases[0]);
   assert.equal(resolvePage(data, data.atlases[0].path, './頁.webp'), data.entries[2].file);
 });
+
+test('folder import matches same-named skeletons only within their own directory', () => {
+  const data = catalog([
+    file('a/hero.json'),
+    file('a/nested/hero.atlas'),
+    file('b/hero.json'),
+    file('b/hero.atlas'),
+    file('a/hero.atlas'),
+  ]);
+  assert.equal(matchAtlas(data, data.skeletons[0])?.path, 'a/hero.atlas');
+  assert.equal(matchAtlas(data, data.skeletons[1])?.path, 'b/hero.atlas');
+});
+test('folder import accepts a sole local atlas with a different name, but rejects ambiguity', () => {
+  const data = catalog([
+    file('a/hero.json'),
+    file('a/shared.atlas'),
+    file('b/villain.skel'),
+    file('b/first.atlas'),
+    file('b/second.atlas'),
+    file('c/hero.atlas'),
+    file('d/hero.atlas'),
+  ]);
+  assert.equal(matchAtlas(data, data.skeletons[0])?.path, 'a/shared.atlas');
+  assert.equal(matchAtlas(data, data.skeletons[1]), null);
+});
+test('an ancestor folder does not silently choose a descendant atlas with a matching basename', () => {
+  const data = catalog([file('hero.json'), file('a/hero.atlas'), file('b/hero.atlas')]);
+  assert.equal(matchAtlas(data, data.skeletons[0]), null);
+});

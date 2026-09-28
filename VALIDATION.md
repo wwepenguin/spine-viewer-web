@@ -56,3 +56,23 @@
 - 五個主區域可獨立折疊，SVG 箭頭與 aria-expanded 同步，收合內容離開鍵盤焦點順序。
 - 瀏覽器驗證全部收合、Enter 展開 Slots、Space 展開 Animations；搜尋文字、walk 動畫與暫停時間保留。
 - Clear 操作不會觸發折疊；無 console error。TypeScript 檢查與正式建置通過。
+
+## 多骨架舞台（2026-09-26，本機）
+
+- 24 項測試通過；新增巢狀資料夾同名 atlas 精確配對、唯一同資料夾 atlas 回退及模糊配對拒絕。
+- 瀏覽器透過 Open folder 匯入測試資料夾：hero-a/spineboy.json、hero-b/spineboy.skel 與 broken/missing.json。前兩者同時顯示，第三者列為跳過，貼圖按各自子資料夾配對。
+- 將第一個骨架設定 run／0.4 秒、第二個設定 idle／0.6 秒；第二個逐幀至 0.633333 秒時第一個仍維持 0.4 秒。Play all 讓兩個時鐘都推進，Pause all 停止兩者。
+- 實測點舞台選取、Stage 清單切換、X 位置修改不影響 Y 精度，以及第二個角色的 head Slot 外框／標示正確跟隨。
+- 移除其中一個角色不影響另一個，移除最後一個得到空舞台；Add selected asset to stage 可再加入新實例。
+- 全部失敗的資料夾匯入不清除原舞台。兩個 Spineboy 的性能統計為 128 bones／104 slots、2 texture pages，Draw Calls 包含整個舞台。
+- TypeScript 檢查與正式建置通過，瀏覽器無 console error。保留固定 PixiJS 6.3.2／pixi-spine 3.1.2、英文 UI 與 PMA 預設關閉。未推送、未部署線上版本。
+
+## 本機音樂與對拍（2026-09-28）
+
+- 31 項測試通過；涵蓋音訊時鐘、暫停／seek／速率、Loop 與自然結尾、非同步 resume／decode 取消、替換失敗保留舊音樂、音量靜音、多聲道波峰，以及不同角色 Start at 映射。
+- 使用實際 Spine 3.8 runtime 驗證 Audio-clock sample 經過 Mix in、循環與倒拖，骨骼姿勢與直接定位一致。
+- 瀏覽器載入 12 秒 WAV 測試節拍與兩個 Spineboy。第二個角色 Start at=2 時，音樂第 1 秒保持第一幀；波形拖曳至 2.016 秒，第二個角色時間為 0.016 秒。
+- > 快捷鍵把 2.016 定位至 2.033333 秒並保持暫停；按 Play 後 AudioContext 時鐘推進。Loop music 跨過 12 秒後繼續循環；關閉 Loop 時音樂停在 12 秒且顯示 Play。
+- 匯入損壞 WAV 顯示錯誤並保留原音樂；Remove audio 後角色保留當前姿勢、全部暫停，回復獨立播放。瀏覽器 console 無錯誤。
+- TypeScript strict 型別檢查、正式建置、格式檢查通過。音樂波形與六軌在 1280×720 同時可見。
+- 本次只更新本機與 ZIP，未推送或部署 GitHub Pages。瀏覽器音訊測試使用靜音控制；沒有宣稱跨裝置的實體音箱延遲或保音高變速已驗證。

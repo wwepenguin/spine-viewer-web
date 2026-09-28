@@ -34,6 +34,7 @@ export async function load(
   if (!atlasFile) throw Error('Select the .atlas file matching this skeleton.');
   let atlas: TextureAtlas;
   const textures = new Set<PIXI.BaseTexture>();
+  let failed = false;
   try {
     const [raw, atlasText] = await Promise.all([
       skeleton.file.arrayBuffer(),
@@ -49,6 +50,10 @@ export async function load(
               .then(() => resolvePage(data, atlasFile.path, page))
               .then((file) => imageTexture(file, pma, linear, signal))
               .then((texture) => {
+                if (failed || signal.aborted) {
+                  texture.destroy();
+                  throw new DOMException('Cancelled', 'AbortError');
+                }
                 textures.add(texture);
                 done(texture);
               })
@@ -107,6 +112,7 @@ export async function load(
       },
     };
   } catch (err) {
+    failed = true;
     for (const texture of textures) texture.destroy();
     throw err;
   }

@@ -58,14 +58,14 @@ export class TrackPanel {
     lane.className = 'timeline-lane';
     lane.dataset.track = String(index);
     lane.setAttribute('aria-label', `Track ${index} clips`);
-    return { row, selectTrack, animation, clear, loop, lane };
+    return { row, selectTrack, animation, sequence, clear, loop, lane };
   });
   constructor(
     private readonly viewer: SkeletonViewer,
     private readonly openSequence: (track: number) => void,
   ) {
-    $('tracks').replaceChildren(...this.rows.map((row) => row.row));
-    $('timelineLanes').prepend(...this.rows.map((row) => row.lane));
+    $('tracks').replaceChildren($('musicLabel'), ...this.rows.map((row) => row.row));
+    $('musicLane').after(...this.rows.map((row) => row.lane));
     $('timelineLanes').ondblclick = (event) => {
       // Pointer capture for panning can retarget clicks to the lane container.
       const lane =
@@ -99,16 +99,8 @@ export class TrackPanel {
       if (this.follow) this.view.reveal(viewer.timelineTime);
       updateView();
     };
-    $('fitTime').onclick = () => {
-      this.view.span = Math.max(
-        0.1,
-        Math.min(300, Math.max(1, viewer.animationTracks?.duration ?? 0) * 1.1),
-      );
-      this.page = 0;
-      this.follow = false;
-      updateView();
-    };
-    for (const surface of [$('timeRuler'), $('timelineLanes')]) {
+    $('fitTime').onclick = () => this.fit();
+    for (const surface of [$('timeRuler'), $('timelineLanes'), $('musicLane')]) {
       let gesture: { mode: 'pan' | 'seek'; x: number; start: number; width: number } | undefined;
       const seek = (event: PointerEvent) => {
         const rect = surface.getBoundingClientRect();
@@ -119,6 +111,7 @@ export class TrackPanel {
         'wheel',
         (event) => {
           event.preventDefault();
+          event.stopPropagation();
           if (this.dragging) return;
           const rect = surface.getBoundingClientRect();
           const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.width : 1;
@@ -136,6 +129,7 @@ export class TrackPanel {
       surface.onpointerdown = (event) => {
         if (event.button !== 0 && event.button !== 1) return;
         event.preventDefault();
+        event.stopPropagation();
         this.follow = false;
         this.dragging = true;
         const mode =
@@ -196,8 +190,10 @@ export class TrackPanel {
   sync() {
     if (this.asset !== this.viewer.asset) {
       this.asset = this.viewer.asset;
-      this.view = new TimelineViewport();
-      this.follow = true;
+      if (!this.viewer.music.loaded) {
+        this.view = new TimelineViewport();
+        this.follow = true;
+      }
       for (const row of this.rows) {
         row.animation.replaceChildren(
           new Option('— No animation —', ''),
@@ -219,14 +215,57 @@ export class TrackPanel {
         row.animation.add(new Option(`Sequence (${clips.length})`, '__sequence__'));
       row.animation.value = clips.length > 1 ? '__sequence__' : clips[0]?.name || '';
       row.animation.disabled = !this.asset?.spineData.animations.length;
+      row.sequence.disabled = !this.asset?.spineData.animations.length;
       row.clear.disabled = !entry;
       row.loop.checked = this.viewer.trackSettings[index]?.loop ?? true;
     });
     $('trackCount').textContent = `${active} active`;
     $('selectedTrack').textContent = `Track ${this.viewer.track}`;
-    $('restartTracks').disabled = !active;
+    $('restartTracks').disabled = !active && !this.viewer.music.loaded;
     this.render();
     this.tick(true);
+  }
+  fit() {
+    this.view.span = Math.max(
+      0.1,
+      Math.min(
+        TimelineViewport.maxSpan,
+        Math.max(
+          1,
+          this.viewer.music.loaded
+            ? this.viewer.music.duration
+            : (this.viewer.animationTracks?.duration ?? 0),
+        ) * 1.05,
+      ),
+    );
+    this.page = 0;
+    this.follow = false;
+    this.render();
+    this.tick(true);
+  }
+  private renderMusic() {
+    const music = this.viewer.music;
+    $('musicLabel').textContent = music.loaded ? `Music · ${music.name}` : 'Music · No audio';
+    $('musicLabel').title = music.name || 'Import audio in the Music panel';
+    $('musicEmpty').hidden = music.loaded;
+    $('musicWave').setAttribute('d', '');
+    if (!music.loaded) return;
+    const commands: string[] = [];
+    for (let x = 0; x < 1000; x += 2) {
+      const start = this.page + (x / 1000) * this.span;
+      const end = this.page + ((x + 2) / 1000) * this.span;
+      if (start >= music.duration) break;
+      const from = Math.floor((start / music.duration) * music.peaks.length);
+      const to = Math.min(
+        music.peaks.length,
+        Math.max(from + 1, Math.ceil((end / music.duration) * music.peaks.length)),
+      );
+      let peak = 0;
+      for (let i = from; i < to; i++) peak = Math.max(peak, music.peaks[i]);
+      const height = Math.max(0.5, peak * 18);
+      commands.push(`M${x} ${20 - height}V${20 + height}`);
+    }
+    $('musicWave').setAttribute('d', commands.join(''));
   }
   ensureVisible() {
     if (this.viewer.timelineTime < this.page || this.viewer.timelineTime > this.page + this.span)
@@ -238,6 +277,7 @@ export class TrackPanel {
     this.tick(true);
   }
   private render() {
+    this.renderMusic();
     $('timeScale').textContent = `${this.span.toFixed(this.span < 1 ? 2 : 1)} s`;
     $('followTime').setAttribute('aria-pressed', String(this.follow));
     $('zoomTimeIn').disabled = this.span <= TimelineViewport.minSpan;
@@ -268,8 +308,9 @@ export class TrackPanel {
       const speed = this.viewer.trackSettings[index].speed;
       const scale = speed > 0 ? speed : 1;
       schedule.forEach((clip, clipIndex) => {
-        const start = clip.start / scale;
-        const end = clip.end / scale;
+        const offset = this.viewer.music.loaded ? (this.viewer.active?.startAt ?? 0) : 0;
+        const start = offset + clip.start / scale;
+        const end = offset + clip.end / scale;
         if (end < this.page || start > this.page + this.span) return;
         const label = `${clip.name} · ${clip.duration.toFixed(2)}s${this.viewer.trackSettings[index].loop && clipIndex === schedule.length - 1 ? ' · ↻ Loop' : ''}`;
         const block = document.createElement('span');
@@ -287,7 +328,10 @@ export class TrackPanel {
         if (clip.duration === 0) block.classList.add('pose-clip');
         row.lane.append(block);
         if (clip.mixIn > 0) {
-          const mixEnd = Math.min((clip.start + clip.mixIn) / scale, this.page + this.span);
+          const mixEnd = Math.min(
+            offset + (clip.start + clip.mixIn) / scale,
+            this.page + this.span,
+          );
           if (mixEnd > visibleStart) {
             const mix = document.createElement('span');
             mix.className = 'mix-region';
@@ -320,7 +364,9 @@ export class TrackPanel {
       this.lastText = now;
       $('currentTime').textContent = `${time.toFixed(3)} s`;
       $('frameCounter').textContent = `F ${Math.round(time * Number($('stepFps').value))}`;
-      const hasAnimation = !!this.viewer.animationTracks?.sequences.some((clips) => clips.length);
+      const hasAnimation =
+        this.viewer.music.loaded ||
+        !!this.viewer.animationTracks?.sequences.some((clips) => clips.length);
       $('previousFrame').disabled = !hasAnimation;
       $('nextFrame').disabled = !hasAnimation;
       $('activeAnimation').textContent =

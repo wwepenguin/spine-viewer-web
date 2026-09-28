@@ -1,4 +1,28 @@
 export interface Elements {
+  importMusic: HTMLButtonElement;
+  removeMusic: HTMLButtonElement;
+  musicInput: HTMLInputElement;
+  musicName: HTMLElement;
+  musicDuration: HTMLElement;
+  musicStatus: HTMLElement;
+  musicVolume: HTMLInputElement;
+  musicVolumeValue: HTMLElement;
+  musicMute: HTMLInputElement;
+  musicLoop: HTMLInputElement;
+  musicStart: HTMLInputElement;
+  musicLabel: HTMLElement;
+  musicLane: HTMLElement;
+  musicWave: SVGPathElement;
+  musicEmpty: HTMLElement;
+  addToStage: HTMLButtonElement;
+  sceneList: HTMLElement;
+  sceneCount: HTMLElement;
+  sceneX: HTMLInputElement;
+  sceneY: HTMLInputElement;
+  arrangeScene: HTMLButtonElement;
+  removeScene: HTMLButtonElement;
+  playScene: HTMLButtonElement;
+  pauseScene: HTMLButtonElement;
   previousFrame: HTMLButtonElement;
   nextFrame: HTMLButtonElement;
   stepFps: HTMLSelectElement;

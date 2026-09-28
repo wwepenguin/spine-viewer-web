@@ -23,10 +23,10 @@ test('pan is continuous and clamps at zero; zoom limits keep a usable scale', ()
   view.zoom(0.00001, 0);
   assert.equal(view.span, 0.1);
   view.zoom(1e9, 0);
-  assert.equal(view.span, 300);
+  assert.equal(view.span, TimelineViewport.maxSpan);
   view.zoom(NaN);
   view.pan(Infinity);
-  assert.equal(view.span, 300);
+  assert.equal(view.span, TimelineViewport.maxSpan);
   assert.equal(view.start, 0);
 });
 

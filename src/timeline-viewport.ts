@@ -3,7 +3,7 @@ export class TimelineViewport {
   start = 0;
   span = 5;
   static readonly minSpan = 0.1;
-  static readonly maxSpan = 300;
+  static readonly maxSpan = 7200;
   zoom(factor: number, anchor = 0.5) {
     if (!Number.isFinite(factor) || factor <= 0) return;
     anchor = Math.max(0, Math.min(1, anchor));

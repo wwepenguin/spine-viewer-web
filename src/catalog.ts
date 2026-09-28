@@ -37,12 +37,15 @@ export function resolvePage(data: AssetCatalog, atlasPath: string, page: string)
   return matches[0].file;
 }
 export function matchAtlas(data: AssetCatalog, skeleton: AssetEntry) {
-  const dir = skeleton.path.slice(0, skeleton.path.lastIndexOf('/') + 1);
-  return (
-    data.atlases.find(
-      (e) =>
-        e.path.startsWith(dir) &&
-        base(e.path).replace(/\.atlas(\.txt)?$/i, '') === stem(skeleton.path),
-    ) || (data.atlases.length === 1 ? data.atlases[0] : null)
-  );
+  const directory = (path: string) => path.slice(0, path.lastIndexOf('/') + 1);
+  const sameDirectory = data.atlases.filter((e) => directory(e.path) === directory(skeleton.path));
+  const named = (entries: AssetEntry[]) =>
+    entries.filter((e) => base(e.path).replace(/\.atlas(\.txt)?$/i, '') === stem(skeleton.path));
+  const local = named(sameDirectory);
+  if (local.length === 1) return local[0];
+  if (local.length > 1) return null;
+  if (sameDirectory.length === 1) return sameDirectory[0];
+  const global = named(data.atlases);
+  if (global.length === 1) return global[0];
+  return data.atlases.length === 1 ? data.atlases[0] : null;
 }

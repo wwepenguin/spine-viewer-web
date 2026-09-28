@@ -76,9 +76,109 @@
             ><select id="atlasSelect" disabled>
               <option>—</option>
             </select>
+            <button id="addToStage" disabled>Add selected asset to stage</button>
             <p class="file-note">
-              Drop a skeleton, atlas and textures. Assets stay in your browser.
+              Open a folder to load all skeletons, including subfolders. Each import replaces the
+              stage. Files stay in your browser.
             </p>
+          </div>
+        </section>
+        <section class="scene-section">
+          <div class="section-heading">
+            <h2>
+              <button
+                type="button"
+                class="section-toggle"
+                aria-expanded="true"
+                aria-controls="sceneContent"
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="m5 3 5 5-5 5" /></svg
+                >Stage
+              </button>
+            </h2>
+            <span id="sceneCount" class="count">0</span>
+          </div>
+          <div id="sceneContent" class="section-content">
+            <div
+              id="sceneList"
+              class="item-list scene-list"
+              role="listbox"
+              aria-label="Stage skeletons"
+            ></div>
+            <p class="file-note">
+              Select a skeleton to edit its skin, slots and timeline. Other skeletons keep playing.
+            </p>
+            <div class="scene-position">
+              <label
+                >X
+                <input
+                  id="sceneX"
+                  type="number"
+                  step="10"
+                  value="0"
+                  aria-label="Selected skeleton X"
+              /></label>
+              <label
+                >Y
+                <input
+                  id="sceneY"
+                  type="number"
+                  step="10"
+                  value="0"
+                  aria-label="Selected skeleton Y"
+              /></label>
+            </div>
+            <div class="scene-actions">
+              <button id="arrangeScene">Arrange</button
+              ><button id="removeScene">Remove selected</button>
+            </div>
+            <div class="scene-actions">
+              <button id="playScene">Play all</button><button id="pauseScene">Pause all</button>
+            </div>
+          </div>
+        </section>
+        <section class="music-section">
+          <div class="section-heading">
+            <h2>
+              <button
+                type="button"
+                class="section-toggle"
+                aria-expanded="true"
+                aria-controls="musicContent"
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="m5 3 5 5-5 5" /></svg
+                >Music
+              </button>
+            </h2>
+            <span id="musicDuration" class="count">No audio</span>
+          </div>
+          <div id="musicContent" class="section-content">
+            <div class="scene-actions">
+              <button id="importMusic">Import audio</button
+              ><button id="removeMusic" disabled>Remove audio</button>
+            </div>
+            <input id="musicInput" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac" hidden />
+            <p id="musicName" class="file-note">Choose a local MP3 or WAV file.</p>
+            <p id="musicStatus" class="file-note" role="status">
+              Without audio, each skeleton plays independently.
+            </p>
+            <label class="range-label" for="musicVolume"
+              >Volume <output id="musicVolumeValue">80%</output></label
+            >
+            <input id="musicVolume" type="range" min="0" max="100" value="80" />
+            <div class="checks">
+              <label><input id="musicMute" type="checkbox" />Mute</label
+              ><label><input id="musicLoop" type="checkbox" />Loop music</label>
+            </div>
+            <label class="range-label" for="musicStart">Selected skeleton · Start at (s)</label>
+            <input id="musicStart" type="number" min="0" step="0.01" value="0" disabled />
+            <p class="file-note">
+              Audio controls the whole stage. Before Start at, the skeleton holds its first pose.
+              Frame stepping is silent.
+            </p>
+            <p class="file-note">Playback speed also changes audio pitch.</p>
           </div>
         </section>
         <section class="skin-section">
@@ -353,7 +453,7 @@
             <strong>Drop to load assets</strong><span>JSON / SKEL ＋ ATLAS ＋ PNG / WebP</span>
           </div>
           <div class="viewport-footer">
-            <span>Drag to pan · Scroll to zoom</span>
+            <span>Click a skeleton to select · Drag to pan · Scroll to zoom</span>
             <div class="viewport-tools">
               <span id="rendererInfo">WebGL</span
               ><button
@@ -445,8 +545,27 @@
               aria-valuemax="5"
               aria-valuenow="0"
             ></div>
-            <div id="tracks" class="track-layers" role="group" aria-label="Animation tracks"></div>
+            <div id="tracks" class="track-layers" role="group" aria-label="Animation tracks">
+              <div id="musicLabel" class="music-label" title="Audio master clock">
+                Music · No audio
+              </div>
+            </div>
             <div id="timelineLanes" class="timeline-lanes">
+              <div
+                id="musicLane"
+                class="music-lane"
+                aria-label="Music waveform: click or drag to seek"
+              >
+                <svg
+                  viewBox="0 0 1000 40"
+                  preserveAspectRatio="none"
+                  role="img"
+                  aria-label="Audio waveform"
+                >
+                  <path id="musicWave" />
+                </svg>
+                <span id="musicEmpty">Import audio to sync the stage</span>
+              </div>
               <div id="playhead" class="playhead"><span></span></div>
             </div>
           </div>
@@ -476,8 +595,9 @@
         three-way overlaps. The first clip starts at 0 without a mix.
       </p>
       <p class="sequence-note">
-        Changes restart the preview at 0. Loop repeats the complete preview; shorter sequences hold
-        their final pose until the preview restarts.
+        Without music, changes restart the preview at 0. With music, edits keep the current music
+        time. Loop repeats the complete preview; shorter sequences hold their final pose until the
+        preview restarts.
       </p>
     </dialog>
     <div id="toast" class="toast" role="status" hidden></div>

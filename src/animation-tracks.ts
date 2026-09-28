@@ -182,18 +182,26 @@ export class AnimationTracks {
     this.model.update(0);
     this.progress(0, time, true);
   }
+  /** Sample an absolute time, preserving continuous runtime state while moving forward. */
+  sample(time: number, force = false) {
+    if (force || time < this.cursor) this.seekAll(time);
+    else if (time > this.cursor) this.progress(this.cursor, time);
+  }
+  get looping() {
+    return this.sequences.some(
+      (clips, track) =>
+        clips.length &&
+        this.settings[track].loop &&
+        this.settings[track].speed > 0 &&
+        (this.layout(track).at(-1)?.end ?? 0) > 0,
+    );
+  }
   advance(time: number, delta: number) {
     const duration = this.duration;
     if (!duration) return { time: 0, complete: true };
     const next = time + delta;
     if (next >= duration) {
-      const loop = this.sequences.some(
-        (clips, track) =>
-          clips.length &&
-          this.settings[track].loop &&
-          this.settings[track].speed > 0 &&
-          (this.layout(track).at(-1)?.end ?? 0) > 0,
-      );
+      const loop = this.looping;
       const position = loop ? next % duration : duration;
       this.seekAll(position);
       return { time: position, complete: !loop };
