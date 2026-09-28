@@ -42,7 +42,7 @@ export interface ProjectSnapshot {
 export function captureProject(viewer: SkeletonViewer): ProjectSnapshot {
   return {
     actors: viewer.items.map((i) => ({
-      source: i.asset.source,
+      source: { ...i.asset.source, entries: [...i.asset.source.entries] },
       state: {
         locked: i.locked,
         name: i.name,

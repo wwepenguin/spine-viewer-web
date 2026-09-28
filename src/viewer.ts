@@ -561,6 +561,10 @@ export class SkeletonViewer {
   }
   setTextureMode(pma: boolean, linear: boolean) {
     if (!this.asset) return;
+    for (const item of this.items) {
+      item.asset.source.pma = pma;
+      item.asset.source.linear = linear;
+    }
     for (const t of new Set(this.items.flatMap((item) => [...item.asset.textures]))) {
       t.alphaMode = pma ? PIXI.ALPHA_MODES.PMA : PIXI.ALPHA_MODES.UNPACK;
       t.scaleMode = linear ? PIXI.SCALE_MODES.LINEAR : PIXI.SCALE_MODES.NEAREST;

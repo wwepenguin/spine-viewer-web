@@ -153,6 +153,10 @@ import type { AssetCatalog, SkeletonAsset } from './types';
   function selectedModelChanged() {
     if ($('sequenceDialog').open) $('sequenceDialog').close();
     const asset = viewer.asset;
+    if (asset) {
+      $('pma').checked = asset.source.pma;
+      $('linear').checked = asset.source.linear;
+    }
     $('modelName').textContent = viewer.active?.name ?? 'Empty stage';
     $('formatBadge').textContent = asset ? 'SPINE ' + asset.spineData.version : 'SPINE 3.8';
     $('skeletonInfo').textContent =

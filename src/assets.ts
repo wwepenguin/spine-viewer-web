@@ -3,9 +3,17 @@ import type { AssetEntry, AssetCatalog, LocalFile, LoadOptions, SkeletonAsset } 
 /* Browser-local asset loading. No user file is sent over the network. */
 
 import { catalog, resolvePage } from './catalog';
+import { ResourcePool } from './resource-pool';
+const texturePool = new ResourcePool<string, PIXI.BaseTexture>((texture) => texture.destroy());
+const fileIds = new WeakMap<File, number>();
+let nextFileId = 0;
+function fileId(file: File) {
+  if (!fileIds.has(file)) fileIds.set(file, nextFileId++);
+  return fileIds.get(file)!;
+}
 export { catalog, matchAtlas, resolvePage } from './catalog';
 const base = (path: string) => path.replace(/\\/g, '/').split('/').pop() || '';
-async function imageTexture(file: File, pma: boolean, linear: boolean, signal: AbortSignal) {
+async function imageTexture(file: File, pma: boolean, linear: boolean) {
   const url = URL.createObjectURL(file);
   const image = new Image();
   try {
@@ -14,7 +22,6 @@ async function imageTexture(file: File, pma: boolean, linear: boolean, signal: A
       image.onerror = () => reject(Error(`Unable to decode texture: ${file.name}`));
       image.src = url;
     });
-    if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
     const texture = new PIXI.BaseTexture(image, {
       alphaMode: pma ? PIXI.ALPHA_MODES.PMA : PIXI.ALPHA_MODES.UNPACK,
       scaleMode: linear ? PIXI.SCALE_MODES.LINEAR : PIXI.SCALE_MODES.NEAREST,
@@ -34,6 +41,10 @@ export async function load(
   if (!atlasFile) throw Error('Select the .atlas file matching this skeleton.');
   let atlas: TextureAtlas;
   const textures = new Set<PIXI.BaseTexture>();
+  const releases: (() => void)[] = [];
+  const releaseAll = () => {
+    releases.splice(0).forEach((release) => release());
+  };
   const used = new Set<File>([skeleton.file, atlasFile.file]);
   let failed = false;
   try {
@@ -51,13 +62,20 @@ export async function load(
               .then(() => resolvePage(data, atlasFile.path, page))
               .then((file) => {
                 used.add(file);
-                return imageTexture(file, pma, linear, signal);
+                const alpha = pma ? PIXI.ALPHA_MODES.PMA : PIXI.ALPHA_MODES.UNPACK;
+                const filter = linear ? PIXI.SCALE_MODES.LINEAR : PIXI.SCALE_MODES.NEAREST;
+                return texturePool.acquire(
+                  `${fileId(file)}:${fileId(atlasFile.file)}:${pma}:${linear}`,
+                  () => imageTexture(file, pma, linear),
+                  (texture) => texture.alphaMode === alpha && texture.scaleMode === filter,
+                );
               })
-              .then((texture) => {
+              .then(({ value: texture, release }) => {
                 if (failed || signal.aborted) {
-                  texture.destroy();
+                  release();
                   throw new DOMException('Cancelled', 'AbortError');
                 }
+                releases.push(release);
                 textures.add(texture);
                 done(texture);
               })
@@ -119,12 +137,12 @@ export async function load(
       textures,
       fileName: base(skeleton.path),
       dispose() {
-        for (const texture of textures) texture.destroy();
+        releaseAll();
       },
     };
   } catch (err) {
     failed = true;
-    for (const texture of textures) texture.destroy();
+    releaseAll();
     throw err;
   }
 }
