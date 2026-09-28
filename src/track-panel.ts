@@ -6,6 +6,8 @@ import { snapTime } from './snapping';
 
 /** Continuous pan/zoom viewport, independent of the shared playback clock. */
 export class TrackPanel {
+  overview = false;
+  private overviewButton = document.createElement('button');
   snap = true;
   bpm = 120;
   beatOffset = 0;
@@ -73,6 +75,11 @@ export class TrackPanel {
   ) {
     const timing = document.createElement('div');
     timing.className = 'editor-actions timing-controls';
+    this.overviewButton.textContent = 'Scene overview';
+    this.overviewButton.onclick = () => {
+      this.overview = !this.overview;
+      this.sync();
+    };
     timing.innerHTML =
       '<label><input id="snapTime" type="checkbox" checked> Snap</label><label><input id="snapBeats" type="checkbox"> Beats</label>';
     const label = document.createElement('label');
@@ -88,6 +95,7 @@ export class TrackPanel {
     };
     label.append(this.startInput);
     timing.append(label);
+    timing.append(this.overviewButton);
     $('timeRuler').closest('.timeline-grid')!.before(timing);
     timing.querySelector<HTMLInputElement>('#snapTime')!.onchange = (e) => {
       this.snap = (e.target as HTMLInputElement).checked;
@@ -277,7 +285,7 @@ export class TrackPanel {
     this.startInput.disabled = !this.viewer.active;
     if (this.asset !== this.viewer.asset) {
       this.asset = this.viewer.asset;
-      if (!this.viewer.music.loaded) {
+      if (!this.viewer.music.loaded && !this.overview) {
         this.view = new TimelineViewport();
         this.follow = true;
       }
@@ -320,7 +328,9 @@ export class TrackPanel {
           1,
           this.viewer.music.loaded
             ? this.viewer.music.duration
-            : (this.viewer.animationTracks?.duration ?? 0),
+            : this.overview
+              ? Math.max(0, ...this.viewer.items.map((item) => item.animationTracks.duration))
+              : (this.viewer.animationTracks?.duration ?? 0),
         ) * 1.05,
       ),
     );
@@ -411,6 +421,9 @@ export class TrackPanel {
     this.tick(true);
   }
   private render() {
+    this.overviewButton.setAttribute('aria-pressed', String(this.overview));
+    this.overviewButton.textContent = this.overview ? 'Selected tracks' : 'Scene overview';
+    this.renderOverview();
     this.renderMusic();
     $('timeScale').textContent = `${this.span.toFixed(this.span < 1 ? 2 : 1)} s`;
     $('followTime').setAttribute('aria-pressed', String(this.follow));
@@ -434,6 +447,7 @@ export class TrackPanel {
       String(Math.max(this.viewer.timelineTime, this.page + this.span)),
     );
     this.rows.forEach((row, index) => {
+      row.row.hidden = row.lane.hidden = this.overview;
       row.lane.replaceChildren();
       row.lane.removeAttribute('title');
       const schedule = this.viewer.animationTracks?.layout(index) ?? [];
@@ -480,6 +494,53 @@ export class TrackPanel {
       });
     });
   }
+  private renderOverview() {
+    document.querySelectorAll('.overview-label,.overview-lane').forEach((el) => el.remove());
+    const height = this.overview ? Math.max(192, this.viewer.items.length * 44) : 192;
+    const grid = $('tracks').closest<HTMLElement>('.timeline-grid')!;
+    grid.style.gridTemplateRows = `25px ${40 + height}px`;
+    if (!this.overview) return;
+    this.viewer.items.forEach((item, index) => {
+      const select = () => {
+        this.viewer.selectItem(item.id);
+        this.overview = false;
+        this.sync();
+      };
+      const label = document.createElement('button');
+      label.className = 'overview-label';
+      label.textContent = `${String(index + 1).padStart(2, '0')} · ${item.name}${item.locked ? ' · Locked' : ''}${!item.model.visible ? ' · Hidden' : ''}`;
+      label.title = item.name;
+      label.setAttribute('aria-label', `Edit timeline for ${item.name} (${index + 1})`);
+      label.setAttribute('aria-pressed', String(this.viewer.active === item));
+      label.onclick = select;
+      $('tracks').append(label);
+      const lane = document.createElement('div');
+      lane.className = 'overview-lane';
+      lane.dataset.actor = String(item.id);
+      const offset = this.viewer.music.loaded ? item.startAt : 0;
+      item.animationTracks.sequences.forEach((_clips, track) => {
+        const settings = item.animationTracks.settings[track];
+        item.animationTracks.layout(track).forEach((clip) => {
+          const start = offset + (settings.start ?? 0) + clip.start / (settings.speed || 1);
+          const end = offset + (settings.start ?? 0) + clip.end / (settings.speed || 1);
+          if (end < this.page || start > this.page + this.span) return;
+          const block = document.createElement('button');
+          block.className = 'overview-clip';
+          const visible = Math.max(start, this.page);
+          block.style.cssText = `left:${((visible - this.page) / this.span) * 100}%;width:${Math.max(0.3, ((Math.min(end, this.page + this.span) - visible) / this.span) * 100)}%;top:${3 + track * 6}px;background:hsl(${160 + track * 24} 45% 45%)`;
+          block.title = `${item.name} · T${track} · ${clip.name} · ${start.toFixed(3)}–${end.toFixed(3)} s`;
+          block.setAttribute('aria-label', block.title);
+          block.onpointerdown = (e) => e.stopPropagation();
+          block.onclick = select;
+          lane.append(block);
+        });
+      });
+      const cursor = document.createElement('span');
+      cursor.className = 'overview-cursor';
+      lane.append(cursor);
+      $('timelineLanes').append(lane);
+    });
+  }
   tick(force = false) {
     const time = this.viewer.timelineTime;
     if (
@@ -492,7 +553,16 @@ export class TrackPanel {
       this.render();
     }
     const relative = (time - this.page) / this.span;
+    if (this.overview)
+      for (const lane of $('timelineLanes').querySelectorAll<HTMLElement>('.overview-lane')) {
+        const item = this.viewer.items.find((i) => i.id === Number(lane.dataset.actor));
+        const local = this.viewer.music.loaded ? time : (item?.timelineTime ?? 0);
+        const cursor = lane.querySelector<HTMLElement>('.overview-cursor')!;
+        cursor.hidden = local < this.page || local > this.page + this.span;
+        cursor.style.left = `${((local - this.page) / this.span) * 100}%`;
+      }
     $('playhead').hidden = relative < 0 || relative > 1;
+    if (this.overview && !this.viewer.music.loaded) $('playhead').hidden = true;
     $('playhead').style.left = `${Math.max(0, Math.min(100, relative * 100))}%`;
     const now = performance.now();
     if (force || now - this.lastText > 80) {
