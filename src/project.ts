@@ -5,6 +5,7 @@ import type { AnimationClip, TrackSettings } from './animation-tracks';
 import { MusicTransport } from './music';
 
 export interface ActorState {
+  locked?: boolean;
   name: string;
   x: number;
   y: number;
@@ -43,6 +44,7 @@ export function captureProject(viewer: SkeletonViewer): ProjectSnapshot {
     actors: viewer.items.map((i) => ({
       source: i.asset.source,
       state: {
+        locked: i.locked,
         name: i.name,
         x: i.model.x,
         y: i.model.y,
@@ -100,6 +102,7 @@ function actorState(value: ActorState): ActorState {
     throw Error('Invalid animation tracks.');
   return {
     name: string(value.name),
+    ...(value.locked !== undefined ? { locked: bool(value.locked) } : {}),
     x: finite(value.x),
     y: finite(value.y),
     scale: finite(value.scale, 0.01, 100),
@@ -250,6 +253,7 @@ export function decodeProject(bytes: Uint8Array): ProjectSnapshot {
   };
 }
 function applyActor(item: SceneItem, state: ActorState) {
+  item.locked = state.locked ?? false;
   item.model.position.set(state.x, state.y);
   item.model.scale.set(state.scale);
   item.model.rotation = state.rotation;

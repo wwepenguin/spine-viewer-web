@@ -3,6 +3,7 @@ import type { SkeletonViewer } from './viewer';
 import type { TrackPanel } from './track-panel';
 import { EditHistory } from './history';
 import { installMusicTools } from './music-tools';
+import { installStageTools } from './stage-tools';
 import type { ProjectSnapshot } from './project';
 
 export function installEditor(
@@ -158,4 +159,5 @@ export function installEditor(
   });
   record();
   installMusicTools(viewer, report);
+  installStageTools(viewer);
 }

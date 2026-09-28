@@ -1,4 +1,5 @@
 import { MusicTransport, animationTime } from './music';
+import { transformPoint, transformVertices } from './transform';
 import { stepFrameTime } from './frame-step';
 import { AnimationTracks, type AnimationClip } from './animation-tracks';
 import {
@@ -16,6 +17,7 @@ import {
   type Highlight,
 } from './types';
 export interface SceneItem {
+  locked: boolean;
   id: number;
   name: string;
   model: RuntimeSpine;
@@ -30,6 +32,7 @@ export interface SceneItem {
   startAt: number;
 }
 export class SkeletonViewer {
+  transformMode: 'move' | 'rotate' | 'scale' = 'move';
   app: PIXI.Application;
   world: PIXI.Container;
   axes: PIXI.Graphics;
@@ -171,6 +174,7 @@ export class SkeletonViewer {
         asset.spineData.animations.find((a) => a.name === 'walk') || asset.spineData.animations[0];
       if (first) animationTracks.play(0, first.name, 0);
       return {
+        locked: false,
         id: this.nextId++,
         name,
         model,
@@ -258,7 +262,7 @@ export class SkeletonViewer {
     if (this.items.length) this.fit();
   }
   moveSelected(x: number, y: number) {
-    if (!this.active || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    if (!this.active || this.active.locked || !Number.isFinite(x) || !Number.isFinite(y)) return;
     this.model.position.set(x, y);
     this.drawHighlight();
     this.onChange?.();
@@ -266,12 +270,35 @@ export class SkeletonViewer {
   arrange() {
     let x = 0;
     for (const item of this.items) {
+      if (item.locked) {
+        x = Math.max(x, this.itemBounds(item).maxX + 80);
+        continue;
+      }
       item.model.position.set(0, 0);
       const b = this.itemBounds(item);
       item.model.position.set(x - b.minX, -b.maxY);
       x += Math.max(40, b.maxX - b.minX) + 80;
     }
     this.fit();
+    this.onChange?.();
+  }
+  transformSelected(scale: number, degrees: number) {
+    if (!this.active || this.active.locked || !Number.isFinite(scale) || !Number.isFinite(degrees))
+      return;
+    this.model.scale.set(Math.max(0.01, Math.min(100, scale)));
+    this.model.rotation = (degrees * Math.PI) / 180;
+    this.drawHighlight();
+    this.onChange?.();
+  }
+  reorderSelected(direction: -1 | 1) {
+    if (!this.active || this.active.locked) return;
+    const index = this.items.indexOf(this.active),
+      next = index + direction;
+    if (next < 0 || next >= this.items.length) return;
+    [this.items[index], this.items[next]] = [this.items[next], this.items[index]];
+    this.items.forEach((item, i) => this.world.setChildIndex(item.model, i + 1));
+    this.onSelectionChange?.();
+    this.drawHighlight();
     this.onChange?.();
   }
   setAllPaused(paused: boolean) {
@@ -480,17 +507,17 @@ export class SkeletonViewer {
       )
         vertices.push(...this.geometry(slot, item.asset).vertices);
     }
-    const b = this.bounds(vertices);
-    return {
-      minX: b.minX + item.model.x,
-      maxX: b.maxX + item.model.x,
-      minY: b.minY + item.model.y,
-      maxY: b.maxY + item.model.y,
-    };
+    return this.bounds(transformVertices(vertices, item.model), item.model.x, item.model.y);
   }
   fit() {
     if (!this.items.length) return;
-    const all = this.items.map((item) => this.itemBounds(item));
+    const all = this.items
+      .filter((item) => item.model.visible)
+      .map((item) => this.itemBounds(item));
+    if (!all.length) {
+      this.drawHighlight();
+      return;
+    }
     const b = {
         minX: Math.min(...all.map((b) => b.minX)),
         minY: Math.min(...all.map((b) => b.minY)),
@@ -527,7 +554,7 @@ export class SkeletonViewer {
     this.onViewChange?.();
   }
   flip(axis: string, on: boolean) {
-    if (!this.model) return;
+    if (!this.model || this.active?.locked) return;
     this.model.skeleton[axis === 'x' ? 'scaleX' : 'scaleY'] = on ? -1 : 1;
     this.model.update(0);
     this.fit();
@@ -543,7 +570,7 @@ export class SkeletonViewer {
   drawHighlight() {
     const g = this.highlight;
     g.clear();
-    g.position.copyFrom(this.model?.position ?? { x: 0, y: 0 });
+    g.position.set(0, 0);
     this.points.position.copyFrom(g.position);
     this.marker.hidden = true;
     const scale = this.world.scale.x || 1;
@@ -555,11 +582,12 @@ export class SkeletonViewer {
       .moveTo(0, -10000)
       .lineTo(0, 10000);
     this.points.clear();
-    if (this.debugFlags.points && this.model) {
+    if (this.debugFlags.points && this.model?.visible) {
       this.points.lineStyle(1 / scale, 0x68e3c4);
       for (const slot of this.model.skeleton.slots) {
         if (slot.getAttachment()?.type === 5) {
-          const p = this.geometry(slot);
+          const local = this.geometry(slot);
+          const p = transformPoint(local.x, local.y, this.model);
           this.points
             .drawCircle(p.x, p.y, 5 / scale)
             .moveTo(p.x - 8 / scale, p.y)
@@ -569,19 +597,25 @@ export class SkeletonViewer {
         }
       }
     }
-    if (this.active && this.items.length > 1) {
+    if (this.active && this.model.visible) {
       const b = this.itemBounds(this.active);
       g.lineStyle(1 / scale, 0x68e3c4, 0.7).drawRect(
-        b.minX - this.model.x - 6 / scale,
-        b.minY - this.model.y - 6 / scale,
+        b.minX - 6 / scale,
+        b.minY - 6 / scale,
         b.maxX - b.minX + 12 / scale,
         b.maxY - b.minY + 12 / scale,
       );
     }
-    if (!this.selectedSlot || !this.model) return;
+    if (!this.selectedSlot || !this.model?.visible) return;
     const slot = this.model.skeleton.findSlot(this.selectedSlot);
     if (!slot) return;
-    const geo = this.geometry(slot),
+    const local = this.geometry(slot);
+    const geo = {
+        ...local,
+        ...transformPoint(local.x, local.y, this.model),
+        vertices: transformVertices(local.vertices, this.model),
+        outline: transformVertices(local.outline, this.model),
+      },
       b = this.bounds(geo.vertices, geo.x, geo.y),
       pad = 3 / scale,
       cx = (b.minX + b.maxX) / 2,
@@ -609,8 +643,8 @@ export class SkeletonViewer {
       this.selectedSlot +
       (geo.inactive ? ' · Inactive bone' : !geo.attachment ? ' · No attachment' : '');
     this.marker.hidden = false;
-    const x = this.world.x + (b.maxX + this.model.x) * scale + 10,
-      y = this.world.y + (b.minY + this.model.y) * scale - 28;
+    const x = this.world.x + b.maxX * scale + 10,
+      y = this.world.y + b.minY * scale - 28;
     this.marker.style.left =
       Math.max(10, Math.min(x, this.app.screen.width - this.marker.offsetWidth - 10)) + 'px';
     this.marker.style.top = Math.max(60, Math.min(y, this.app.screen.height - 50)) + 'px';
@@ -658,43 +692,104 @@ export class SkeletonViewer {
     this.onTick?.();
   }
   attachGestures() {
-    let drag: { x: number; y: number } | null = null;
-    let origin: { x: number; y: number } | undefined;
     const canvas = this.app.view;
+    let gesture:
+      | {
+          x: number;
+          y: number;
+          item?: SceneItem;
+          modelX: number;
+          modelY: number;
+          scale: number;
+          rotation: number;
+          angle: number;
+          radius: number;
+          worldX: number;
+          worldY: number;
+        }
+      | undefined;
+    const point = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left - this.world.x) / this.world.scale.x,
+        y: (e.clientY - rect.top - this.world.y) / this.world.scale.y,
+      };
+    };
     canvas.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 && e.button !== 1) return;
-      origin = e.button === 0 ? { x: e.clientX, y: e.clientY } : undefined;
+      const p = point(e);
+      const hit =
+        e.button === 0 && !e.shiftKey
+          ? [...this.items].reverse().find((item) => {
+              if (!item.model.visible) return false;
+              const b = this.itemBounds(item);
+              return p.x >= b.minX && p.x <= b.maxX && p.y >= b.minY && p.y <= b.maxY;
+            })
+          : undefined;
+      if (hit) this.selectItem(hit.id);
+      if (hit?.locked) return;
+      gesture = {
+        x: e.clientX,
+        y: e.clientY,
+        item: hit,
+        modelX: hit?.model.x ?? 0,
+        modelY: hit?.model.y ?? 0,
+        scale: hit?.model.scale.x ?? 1,
+        rotation: hit?.model.rotation ?? 0,
+        angle: hit ? Math.atan2(p.y - hit.model.y, p.x - hit.model.x) : 0,
+        radius: hit ? Math.max(1, Math.hypot(p.x - hit.model.x, p.y - hit.model.y)) : 1,
+        worldX: this.world.x,
+        worldY: this.world.y,
+      };
       canvas.setPointerCapture(e.pointerId);
-      drag = { x: e.clientX, y: e.clientY };
       canvas.style.cursor = 'grabbing';
     });
     canvas.addEventListener('pointermove', (e) => {
-      if (drag) {
-        this.world.x += e.clientX - drag.x;
-        this.world.y += e.clientY - drag.y;
-        drag = { x: e.clientX, y: e.clientY };
-        this.drawHighlight();
+      if (!gesture) return;
+      const g = gesture,
+        item = g.item;
+      if (item && this.items.includes(item)) {
+        const p = point(e);
+        if (this.transformMode === 'move')
+          item.model.position.set(
+            g.modelX + (e.clientX - g.x) / this.world.scale.x,
+            g.modelY + (e.clientY - g.y) / this.world.scale.y,
+          );
+        else if (this.transformMode === 'rotate')
+          item.model.rotation =
+            g.rotation + Math.atan2(p.y - item.model.y, p.x - item.model.x) - g.angle;
+        else
+          item.model.scale.set(
+            Math.max(
+              0.01,
+              Math.min(
+                100,
+                (g.scale * Math.hypot(p.x - item.model.x, p.y - item.model.y)) / g.radius,
+              ),
+            ),
+          );
+        this.onChange?.();
+      } else {
+        this.world.position.set(g.worldX + e.clientX - g.x, g.worldY + e.clientY - g.y);
       }
+      this.drawHighlight();
     });
     const finish = () => {
-      drag = null;
+      gesture = undefined;
       canvas.style.cursor = 'grab';
     };
-    canvas.addEventListener('pointerup', (e) => {
-      if (origin && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) < 4) {
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - this.world.x) / this.world.scale.x;
-        const y = (e.clientY - rect.top - this.world.y) / this.world.scale.y;
-        const hit = [...this.items].reverse().find((item) => {
-          const b = this.itemBounds(item);
-          return x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY;
-        });
-        if (hit) this.selectItem(hit.id);
+    canvas.addEventListener('pointerup', finish);
+    canvas.addEventListener('lostpointercapture', finish);
+    canvas.addEventListener('pointercancel', () => {
+      if (gesture?.item) {
+        gesture.item.model.position.set(gesture.modelX, gesture.modelY);
+        gesture.item.model.scale.set(gesture.scale);
+        gesture.item.model.rotation = gesture.rotation;
+        this.drawHighlight();
+        this.onChange?.();
       }
-      origin = undefined;
       finish();
     });
-    canvas.addEventListener('pointercancel', finish);
     canvas.style.cursor = 'grab';
     canvas.addEventListener(
       'wheel',

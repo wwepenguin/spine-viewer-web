@@ -1552,3 +1552,10 @@ kbd {
   bottom: 0;
   background: #d8b84222;
 }
+.stage-tools input[type='number'] {
+  width: 78px;
+  padding: 4px;
+}
+.stage-tools label {
+  font-size: 11px;
+}
