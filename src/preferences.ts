@@ -36,27 +36,12 @@ export function installPreferences(viewer: SkeletonViewer, timeline: TrackPanel)
     /* Storage may be disabled. */
   }
   const preferences = parsePreferences(stored);
-  const panel = document.createElement('section');
-  panel.innerHTML = `<div class="section-heading"><h2><button class="section-toggle" aria-expanded="true" aria-controls="preferencesContent"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Preferences</button></h2></div>
-    <div id="preferencesContent"><label for="sidebarWidth">Sidebar width</label><input id="sidebarWidth" aria-label="Sidebar width" type="range" min="260" max="480" step="10">
-    <label for="timelineHeight">Timeline height</label><input id="timelineHeight" aria-label="Timeline height" type="range" min="220" max="600" step="10">
-    <p class="hint">Drag the panel dividers or use these sliders. Layout, collapsed sections, audio volume and frame FPS are remembered on this browser.</p></div>`;
-  $('sidebar').append(panel);
-  const toggle = panel.querySelector<HTMLButtonElement>('button')!;
-  toggle.onclick = () => {
-    const content = panel.querySelector<HTMLElement>('#preferencesContent')!;
-    content.hidden = !content.hidden;
-    toggle.setAttribute('aria-expanded', String(!content.hidden));
-  };
-  const width = panel.querySelector<HTMLInputElement>('#sidebarWidth')!,
-    height = panel.querySelector<HTMLInputElement>('#timelineHeight')!;
-  width.value = String(preferences.width);
-  height.value = String(preferences.height);
+  const sizes = { width: preferences.width, height: preferences.height };
   const layout = () => {
-    document.documentElement.style.setProperty('--sidebar-width', width.value + 'px');
-    document.documentElement.style.setProperty('--timeline-height', height.value + 'px');
-    document.querySelector('#sidebarSizer')?.setAttribute('aria-valuenow', width.value);
-    document.querySelector('#timelineSizer')?.setAttribute('aria-valuenow', height.value);
+    document.documentElement.style.setProperty('--sidebar-width', sizes.width + 'px');
+    document.documentElement.style.setProperty('--timeline-height', sizes.height + 'px');
+    document.querySelector('#sidebarSizer')?.setAttribute('aria-valuenow', String(sizes.width));
+    document.querySelector('#timelineSizer')?.setAttribute('aria-valuenow', String(sizes.height));
   };
   layout();
   $('stepFps').value = preferences.fps;
@@ -77,8 +62,8 @@ export function installPreferences(viewer: SkeletonViewer, timeline: TrackPanel)
   }
   const save = () => {
     const value = {
-      width: Number(width.value),
-      height: Number(height.value),
+      width: sizes.width,
+      height: sizes.height,
       volume: viewer.music.volume,
       muted: viewer.music.muted,
       fps: Number($('stepFps').value),
@@ -94,18 +79,14 @@ export function installPreferences(viewer: SkeletonViewer, timeline: TrackPanel)
       /* Keep the current session usable without storage. */
     }
   };
-  width.oninput = height.oninput = () => {
-    layout();
-    save();
-  };
   document.addEventListener('click', (e) => {
     if ((e.target as Element).closest('.section-toggle')) queueMicrotask(save);
   });
   for (const id of ['stepFps', 'musicVolume', 'musicMute', 'snapTime', 'snapBeats'])
     document.getElementById(id)!.addEventListener('change', () => queueMicrotask(save));
-  for (const [id, orientation, input] of [
-    ['sidebarSizer', 'vertical', width],
-    ['timelineSizer', 'horizontal', height],
+  for (const [id, orientation, key, min, max] of [
+    ['sidebarSizer', 'vertical', 'width', 260, 480],
+    ['timelineSizer', 'horizontal', 'height', 220, 600],
   ] as const) {
     const handle = document.createElement('div');
     handle.id = id;
@@ -117,39 +98,44 @@ export function installPreferences(viewer: SkeletonViewer, timeline: TrackPanel)
       'aria-label',
       orientation === 'vertical' ? 'Resize sidebar' : 'Resize timeline',
     );
-    handle.setAttribute('aria-valuemin', input.min);
-    handle.setAttribute('aria-valuemax', input.max);
-    handle.setAttribute('aria-valuenow', input.value);
+    handle.setAttribute('aria-valuemin', String(min));
+    handle.setAttribute('aria-valuemax', String(max));
+    handle.setAttribute('aria-valuenow', String(sizes[key]));
     let start: { x: number; y: number; size: number } | undefined;
     handle.onpointerdown = (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
-      start = { x: e.clientX, y: e.clientY, size: Number(input.value) };
+      const panel =
+        orientation === 'vertical'
+          ? $('sidebar')
+          : document.querySelector<HTMLElement>('.timeline-dock')!;
+      start = { x: e.clientX, y: e.clientY, size: panel.getBoundingClientRect()[key] };
       handle.setPointerCapture(e.pointerId);
     };
     handle.onpointermove = (e) => {
       if (!start) return;
-      input.value = String(
-        Math.max(
-          Number(input.min),
-          Math.min(
-            Number(input.max),
-            start.size + (orientation === 'vertical' ? e.clientX - start.x : start.y - e.clientY),
-          ),
+      sizes[key] = Math.max(
+        min,
+        Math.min(
+          max,
+          start.size + (orientation === 'vertical' ? e.clientX - start.x : start.y - e.clientY),
         ),
       );
       layout();
     };
-    handle.onpointerup = handle.onpointercancel = () => {
-      start = undefined;
-      save();
-    };
+    handle.onpointerup =
+      handle.onpointercancel =
+      handle.onlostpointercapture =
+        () => {
+          start = undefined;
+          save();
+        };
     handle.onkeydown = (e) => {
-      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+      const keys =
+        orientation === 'vertical' ? ['ArrowLeft', 'ArrowRight'] : ['ArrowDown', 'ArrowUp'];
+      if (!keys.includes(e.key)) return;
       e.preventDefault();
-      input.value = String(
-        Number(input.value) + (['ArrowRight', 'ArrowUp'].includes(e.key) ? 10 : -10),
-      );
+      sizes[key] = Math.max(min, Math.min(max, sizes[key] + (e.key === keys[1] ? 10 : -10)));
       layout();
       save();
     };

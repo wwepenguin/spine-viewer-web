@@ -76,7 +76,7 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 - **Set A／Set B** 從播放頭設定範圍，或直接輸入秒數；**Loop A–B** 使用 AudioBufferSource 的 loopStart／loopEnd，畫面也依同一音訊時鐘回到 A。需 0 ≤ A < B ≤ 音樂長度。啟用時優先於整首 Loop music；逐格與暫停 seek 仍可檢視範圍外，Play 時回到有效循環範圍。
 - **Move／Rotate／Scale**：直接拖曳角色；旋轉和縮放以骨架原點為中心，亦可輸入精確數值。**Visible** 控制顯示，**Lock transforms** 保護位置、縮放、旋轉、Flip 與圖層操作；不鎖動畫設定或移除。**Send backward／Bring forward** 每次移動一層。
 - 同一組來源貼圖與 atlas 的多個實例共用 BaseTexture，各自的骨架／動畫仍獨立；不同匯入的 File 物件不做內容雜湊去重。Performance 的 Texture pages／估算記憶體依共用後的實際貼圖統計。
-- **Preferences** 或可拖曳的分隔線可調 Sidebar width／Timeline height。折疊、尺寸、音量／Mute、Frame step FPS 和吸附偏好存入此瀏覽器 localStorage。素材不會自動存到 localStorage，請另外儲存專案 ZIP。
+- 直接拖曳側欄右緣或時間軸上緣的分隔線即可調整尺寸；聚焦分隔線後也可使用方向鍵。折疊、尺寸、音量／Mute、Frame step FPS 和吸附偏好存入此瀏覽器 localStorage。素材不會自動存到 localStorage，請另外儲存專案 ZIP。
 
 ## 使用與部署
 
@@ -88,7 +88,7 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 Vite build 附 source map 供除錯；若不想發布原始碼，將 `vite.config.ts` 的 `build.sourcemap` 設成 `false` 後重新打包。pixi-spine 含多個 runtime，正式 JS bundle 較大屬預期；不任意裁掉 runtime 以維持既有相容範圍。
 
-左側 **Project／Assets／Stage／Music／Skin／Slots／Animations／View／Preferences** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
+左側 **Project／Assets／Stage／Music／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
 
 ## 多骨架舞台（本機版）
 

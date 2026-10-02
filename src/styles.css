@@ -1631,12 +1631,6 @@ kbd {
   right: 0;
   cursor: row-resize;
 }
-#preferencesContent label {
-  font-size: 11px;
-}
-#preferencesContent input {
-  width: 100%;
-}
 @media (max-width: 720px) {
   #sidebarSizer {
     display: none;
