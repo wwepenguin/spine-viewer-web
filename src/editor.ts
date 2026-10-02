@@ -14,21 +14,9 @@ export function installEditor(
   report: (error: unknown) => void,
   cancelPending: () => void,
 ) {
-  const section = document.createElement('section');
-  section.className = 'panel editor-panel';
-  section.innerHTML = `<div class="section-heading"><h2><button class="section-toggle" aria-expanded="true" aria-controls="projectContent"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Project</button></h2></div>
-    <div id="projectContent"><div class="editor-actions"><button id="saveProject">Save project ZIP</button><button id="openProject">Open project ZIP</button></div>
-    <input id="projectFile" type="file" accept=".zip" hidden><p class="hint">Includes skeletons, textures, audio and track settings. Opens paused.</p></div>`;
-  document.getElementById('sidebar')!.prepend(section);
-  const toggle = section.querySelector('button')!;
-  toggle.onclick = () => {
-    const content = section.querySelector<HTMLElement>('#projectContent')!;
-    content.hidden = !content.hidden;
-    toggle.setAttribute('aria-expanded', String(!content.hidden));
-  };
-  const save = section.querySelector<HTMLButtonElement>('#saveProject')!;
-  const open = section.querySelector<HTMLButtonElement>('#openProject')!;
-  const input = section.querySelector<HTMLInputElement>('#projectFile')!;
+  const save = document.querySelector<HTMLButtonElement>('#saveProject')!;
+  const open = document.querySelector<HTMLButtonElement>('#openProject')!;
+  const input = document.querySelector<HTMLInputElement>('#projectFile')!;
   const busy = document.createElement('dialog');
   busy.className = 'project-busy';
   busy.textContent = 'Preparing project…';
@@ -69,13 +57,8 @@ export function installEditor(
         await restoreProject(viewer, snapshot);
       });
   };
-  const actions = document.createElement('div');
-  actions.className = 'editor-actions';
-  actions.innerHTML =
-    '<button id="undoEdit" title="Ctrl+Z / Cmd+Z">Undo</button><button id="redoEdit" title="Ctrl+Shift+Z / Ctrl+Y">Redo</button>';
-  section.querySelector('#projectContent')!.prepend(actions);
-  const undo = actions.querySelector<HTMLButtonElement>('#undoEdit')!;
-  const redo = actions.querySelector<HTMLButtonElement>('#redoEdit')!;
+  const undo = document.querySelector<HTMLButtonElement>('#undoEdit')!;
+  const redo = document.querySelector<HTMLButtonElement>('#redoEdit')!;
   const fileIds = new WeakMap<File, number>();
   let nextFile = 0;
   const fileId = (file?: File) => {

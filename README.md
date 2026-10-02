@@ -64,7 +64,7 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 ## 編排專案與操作歷程
 
-- **Project → Save project ZIP** 將目前舞台使用的骨架、atlas、貼圖與音樂包成一份 ZIP，包含角色位置、縮放、旋轉、顯示／鎖定、圖層順序、skin／flip、各軌 sequence／Mix in／Loop／速度／權重／起播時間及音樂標記。重複使用的 File 只打包一次。
+- 頂部工具列的 **Save project ZIP** 圖示將目前舞台使用的骨架、atlas、貼圖與音樂包成一份 ZIP，包含角色位置、縮放、旋轉、顯示／鎖定、圖層順序、skin／flip、各軌 sequence／Mix in／Loop／速度／權重／起播時間及音樂標記。重複使用的 File 只打包一次。Undo／Redo／Save／Open 使用 SVG 圖示，滑鼠停留可查看功能提示。
 - **Open project ZIP** 先解碼音訊、驗證素材及建立角色，再替換舞台；失敗保留原舞台。讀回後一律暫停。ZIP 上限 512 MB、最多 128 個角色。匯入素材本身不是專案格式，請使用 Open assets／Open folder。
 - **Undo／Redo** 或 **Ctrl/Cmd+Z、Ctrl/Cmd+Shift+Z、Ctrl+Y** 可回復編排變更，保留最多 40 個狀態。一次拖曳或一次輸入視為一次操作；文字輸入框保留瀏覽器的文字復原。播放／seek 不產生編輯歷程，復原後暫停預覽。操作歷程不寫入 ZIP。
 - **Snap** 啟用影格、播放頭與 Marker 吸附；勾 **Beats** 加入節拍吸附。拖曳任一動畫區塊會整串移動該 track 的 sequence，保留 Mix in；**Alt** 暫時略過吸附。每軌起點為角色的局部秒數；有音樂時再加上角色 Start at。此版不提供單一 clip 的任意空隙／裁切。
@@ -88,7 +88,7 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 Vite build 附 source map 供除錯；若不想發布原始碼，將 `vite.config.ts` 的 `build.sourcemap` 設成 `false` 後重新打包。pixi-spine 含多個 runtime，正式 JS bundle 較大屬預期；不任意裁掉 runtime 以維持既有相容範圍。
 
-左側 **Project／Assets／Stage／Music／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
+左側 **Assets／Stage／Music／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
 
 ## 多骨架舞台（本機版）
 

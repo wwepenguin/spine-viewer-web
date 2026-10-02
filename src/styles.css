@@ -154,6 +154,39 @@ h1 span {
   gap: 8px;
   margin-left: auto;
 }
+.project-toolbar,
+.project-action-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.project-toolbar {
+  gap: 8px;
+}
+.project-action-group + .project-action-group {
+  border-left: 1px solid var(--line);
+  padding-left: 8px;
+}
+.project-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 6px;
+  background: transparent;
+  border-color: transparent;
+}
+.project-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
 .workspace {
   height: calc(100dvh - 66px);
   display: grid;
@@ -676,9 +709,21 @@ kbd {
     display: block;
   }
   .app-header {
-    height: 60px;
-    padding: 0 10px;
-    gap: 8px;
+    height: 104px;
+    padding: 6px 10px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: 42px 42px;
+    gap: 4px 8px;
+  }
+  .project-toolbar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+  }
+  .header-actions {
+    grid-column: 3;
+    grid-row: 1;
   }
   .brand {
     gap: 6px;
@@ -701,14 +746,14 @@ kbd {
     font-size: 28px;
   }
   .workspace {
-    height: calc(100dvh - 60px);
+    height: calc(100dvh - 104px);
     grid-template-columns: 1fr;
   }
   .sidebar {
     display: none;
     position: absolute;
     left: 0;
-    top: 60px;
+    top: 104px;
     bottom: 0;
     width: min(310px, 88vw);
     box-shadow: 12px 0 40px #0008;
@@ -1452,20 +1497,11 @@ kbd {
 :root {
   --editor-accent: #68e3c4;
 }
-.editor-panel {
-  padding: 14px;
-  border-bottom: 1px solid #293543;
-}
 .editor-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin: 8px 0;
-}
-.editor-panel .hint {
-  color: #96a6b9;
-  font-size: 11px;
-  line-height: 1.5;
 }
 .project-busy {
   color: #dce7f2;

@@ -34,6 +34,61 @@
         <span>PixiJS <b>6.3.2</b></span
         ><span>pixi-spine <b>3.1.2</b></span>
       </div>
+      <div class="project-toolbar" role="group" aria-label="Project actions">
+        <div class="project-action-group" role="group" aria-label="Edit history">
+          <button
+            id="undoEdit"
+            class="project-icon"
+            type="button"
+            aria-label="Undo"
+            title="Undo (Ctrl+Z / Cmd+Z)"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="m9 5-5 5 5 5M4 10h10a6 6 0 0 1 0 12" />
+            </svg>
+          </button>
+          <button
+            id="redoEdit"
+            class="project-icon"
+            type="button"
+            aria-label="Redo"
+            title="Redo (Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y)"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="m15 5 5 5-5 5M20 10H10a6 6 0 0 0 0 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="project-action-group" role="group" aria-label="Project files">
+          <button
+            id="saveProject"
+            class="project-icon"
+            type="button"
+            aria-label="Save project ZIP"
+            title="Save project ZIP — includes assets, audio and track settings"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2ZM7 3v6h9V3M7 21v-8h10v8"
+              />
+            </svg>
+          </button>
+          <button
+            id="openProject"
+            class="project-icon"
+            type="button"
+            aria-label="Open project ZIP"
+            title="Open project ZIP — restores the saved stage, paused"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M3 10V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v2M3 10h18l-3 10H3L1 10h2Z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <input id="projectFile" type="file" accept=".zip" hidden />
       <div class="header-actions">
         <button id="sampleButton" class="quiet">Sample</button
         ><button id="folderButton" class="quiet">Open folder</button
