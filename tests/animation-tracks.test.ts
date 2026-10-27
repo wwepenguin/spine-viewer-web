@@ -328,3 +328,85 @@ test('delayed track starts at its offset and continuous playback matches direct 
   assert.ok(skeleton.findBone('body')!.x > 10);
   assert.throws(() => tracks.configure(0, { start: -1 }), /Track start/);
 });
+
+test('custom duration cuts to the next animation without changing source playback speed', () => {
+  const { tracks, state, skeleton } = fixture();
+  tracks.setSequence(0, [
+    { name: 'walk', mixIn: 0, duration: 0.4 },
+    { name: 'lean', mixIn: 0 },
+  ]);
+  close(tracks.duration, 1.4);
+  tracks.seekAll(0.3);
+  close(skeleton.findBone('body').x, 3);
+  tracks.advance(0.3, 0.1);
+  assert.equal(state.getCurrent(0).animation.name, 'lean');
+  tracks.seekAll(0.5);
+  close(skeleton.findBone('body').x, 21);
+  assert.equal(tracks.sequences[0][0].duration, 0.4);
+});
+
+test('trimmed final clips hold the cut pose while a longer track keeps playing', () => {
+  const { tracks, state, skeleton } = fixture();
+  tracks.setSequence(0, [{ name: 'walk', mixIn: 0, duration: 0.4 }]);
+  tracks.setSequence(1, [{ name: 'shoot', mixIn: 0 }]);
+  tracks.configure(0, { loop: true, alpha: 1 });
+  tracks.seekAll(0.8);
+  assert.equal(state.getCurrent(0).loop, false);
+  close(skeleton.findBone('body').x, 4);
+  close(skeleton.findBone('arm').rotation, 72);
+});
+
+test('duration overrides preserve mixing, offsets, speed, looping and backward scrubbing', () => {
+  const a = fixture(),
+    b = fixture();
+  for (const { tracks } of [a, b]) {
+    tracks.setSequence(0, [
+      { name: 'walk', mixIn: 0, duration: 0.5 },
+      { name: 'lean', mixIn: 0.2, duration: 0.6 },
+    ]);
+    tracks.configure(0, { start: 0.2, speed: 0.5 });
+    close(tracks.layout(0)[1].start, 0.3);
+    close(tracks.duration, 2);
+  }
+  a.tracks.seekAll(1);
+  close(a.skeleton.findBone('body').x, 12.5);
+  close(a.state.getCurrent(0).mixDuration, 0.4);
+  for (const time of [0, 0.4, 0.8, 1, 1.4, 2, 0.6]) {
+    a.tracks.sample(time);
+    b.tracks.seekAll(time);
+    close(a.skeleton.findBone('body').x, b.skeleton.findBone('body').x);
+  }
+  close(a.tracks.advance(1.9, 0.2).time, 0.1);
+});
+
+test('extended duration holds the source end pose before transitioning', () => {
+  const { tracks, state, skeleton } = fixture();
+  tracks.setSequence(0, [
+    { name: 'walk', mixIn: 0, duration: 2 },
+    { name: 'lean', mixIn: 0 },
+  ]);
+  tracks.seekAll(1.5);
+  assert.equal(state.getCurrent(0).animation.name, 'walk');
+  close(skeleton.findBone('body').x, 10);
+  tracks.seekAll(2.25);
+  assert.equal(state.getCurrent(0).animation.name, 'lean');
+  close(skeleton.findBone('body').x, 22.5);
+});
+
+test('zero duration transitions immediately and invalid durations retain the previous sequence', () => {
+  const { tracks, state } = fixture();
+  tracks.setSequence(0, [
+    { name: 'walk', mixIn: 0, duration: 0 },
+    { name: 'lean', mixIn: 0.2 },
+  ]);
+  assert.equal(state.getCurrent(0).animation.name, 'lean');
+  close(tracks.layout(0)[1].mixIn, 0);
+  const previous = structuredClone(tracks.sequences[0]);
+  for (const duration of [-1, NaN, Infinity, 7201]) {
+    assert.throws(() => tracks.setSequence(0, [{ name: 'walk', mixIn: 0, duration }]), /Duration/);
+    assert.deepEqual(tracks.sequences[0], previous);
+  }
+  tracks.setSequence(0, [{ name: 'walk', mixIn: 0 }]);
+  close(tracks.duration, 1);
+  assert.equal(state.getCurrent(0).loop, true);
+});

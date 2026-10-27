@@ -67,7 +67,9 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 - 頂部工具列的 **Save project ZIP** 圖示將目前舞台使用的骨架、atlas、貼圖與音樂包成一份 ZIP，包含角色位置、縮放、旋轉、顯示／鎖定、圖層順序、skin／flip、各軌 sequence／Mix in／Loop／速度／權重／起播時間及音樂標記。重複使用的 File 只打包一次。Undo／Redo／Save／Open 使用 SVG 圖示，滑鼠停留可查看功能提示。
 - **Open project ZIP** 先解碼音訊、驗證素材及建立角色，再替換舞台；失敗保留原舞台。讀回後一律暫停。ZIP 上限 512 MB、最多 128 個角色。匯入素材本身不是專案格式，請使用 Open assets／Open folder。
 - **Undo／Redo** 或 **Ctrl/Cmd+Z、Ctrl/Cmd+Shift+Z、Ctrl+Y** 可回復編排變更，保留最多 40 個狀態。一次拖曳或一次輸入視為一次操作；文字輸入框保留瀏覽器的文字復原。播放／seek 不產生編輯歷程，復原後暫停預覽。操作歷程不寫入 ZIP。
-- **Snap** 啟用影格、播放頭與 Marker 吸附；勾 **Beats** 加入節拍吸附。拖曳任一動畫區塊會整串移動該 track 的 sequence，保留 Mix in；**Alt** 暫時略過吸附。每軌起點為角色的局部秒數；有音樂時再加上角色 Start at。此版不提供單一 clip 的任意空隙／裁切。
+- 每軌的 **+** 開啟 sequence 編輯器；每段的 **Duration (s)** 可指定播放長度（0–7200 秒），留空 **Auto** 使用原動畫長度。縮短會裁到指定時間，延長會停留在原動畫最後一格，不會拉伸動畫或改變速度。時間軸區塊、總長度、音樂同步、逐格、Undo／Redo 和專案 ZIP 皆使用此設定；舊專案維持原長度。
+- **Mix in (s)** 與前段重疊：walk 的 Duration 設 0.5、下一段 run 的 Mix in 設 0，會在 0.5 秒切換；Mix in 設 0.2，則在 0.3 秒開始混合、0.5 秒完成。Track speed 為 0.5× 時，以上時間加倍。
+- **Snap** 啟用影格、播放頭與 Marker 吸附；勾 **Beats** 加入節拍吸附。拖曳任一動畫區塊會整串移動該 track 的 sequence，保留 Duration／Mix in；**Alt** 暫時略過吸附。每軌起點為角色的局部秒數；有音樂時再加上角色 Start at。此版不提供單一 clip 的任意空隙或入點裁切。
 - **Scene overview** 在同一刻度顯示所有角色與六軌色帶，點角色名稱或色帶回到該角色的軌道編輯。沒有音樂時每個角色保留獨立時鐘。
 
 ## 音樂標記、循環與舞台工具

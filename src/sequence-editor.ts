@@ -1,6 +1,6 @@
 import { $ } from './dom';
 import type { SkeletonViewer } from './viewer';
-import type { AnimationClip } from './animation-tracks';
+import { MAX_CLIP_DURATION, type AnimationClip } from './animation-tracks';
 
 export class SequenceEditor {
   private track = 0;
@@ -57,6 +57,34 @@ export class SequenceEditor {
           this.change(
             this.clips.map((item, i) => (i === index ? { ...item, name: select.value } : item)),
           );
+        const duration = document.createElement('input');
+        duration.type = 'number';
+        duration.min = '0';
+        duration.max = String(MAX_CLIP_DURATION);
+        duration.step = '0.01';
+        duration.value = clip.duration === undefined ? '' : String(clip.duration);
+        const original = animations.find((a) => a.name === clip.name)?.duration ?? 0;
+        duration.placeholder = `Auto ${original.toFixed(2)}`;
+        duration.title = `Original: ${original.toFixed(3)} s. Leave empty to use the original duration.`;
+        duration.setAttribute('aria-label', `Clip ${index + 1} Duration`);
+        duration.oninput = () => {
+          if (duration.validity.badInput) return;
+          const value = duration.value === '' ? undefined : Number(duration.value);
+          if (value !== undefined && !Number.isFinite(value)) return;
+          this.change(
+            this.clips.map((item, i) => {
+              if (i !== index) return item;
+              const { duration: _previous, ...rest } = item;
+              return value === undefined
+                ? rest
+                : { ...rest, duration: Math.max(0, Math.min(MAX_CLIP_DURATION, value)) };
+            }),
+          );
+        };
+        duration.onblur = () => {
+          const value = this.clips[index]?.duration;
+          duration.value = value === undefined ? '' : String(value);
+        };
         const mix = document.createElement('input');
         mix.type = 'number';
         mix.min = '0';
@@ -94,6 +122,7 @@ export class SequenceEditor {
         row.append(
           number,
           select,
+          duration,
           mix,
           buttons('Move up', '↑', () => move(-1), index === 0),
           buttons('Move down', '↓', () => move(1), index === this.clips.length - 1),

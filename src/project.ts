@@ -2,6 +2,7 @@ import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import type { SkeletonViewer } from './viewer';
 import type { SkeletonAsset } from './types';
 import type { AnimationClip, TrackSettings } from './animation-tracks';
+import { MAX_CLIP_DURATION } from './animation-tracks';
 
 export interface ActorState {
   selectedSlot?: string | null;
@@ -122,7 +123,11 @@ function actorState(value: ActorState): ActorState {
     time: finite(value.time, 0),
     sequences: value.sequences.map((clips) => {
       if (!Array.isArray(clips) || clips.length > 64) throw Error('Invalid clip count.');
-      return clips.map((c) => ({ name: string(c.name), mixIn: finite(c.mixIn, 0, 4) }));
+      return clips.map((c) => ({
+        name: string(c.name),
+        mixIn: finite(c.mixIn, 0, 4),
+        ...(c.duration !== undefined ? { duration: finite(c.duration, 0, MAX_CLIP_DURATION) } : {}),
+      }));
     }),
     settings: value.settings.map((s) => ({
       ...(s.start !== undefined ? { start: finite(s.start, 0, 7200) } : {}),

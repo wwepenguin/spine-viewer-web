@@ -1,9 +1,12 @@
 import type { RuntimeState } from './runtime';
 
 export const TRACK_COUNT = 6;
+export const MAX_CLIP_DURATION = 7200;
 export interface AnimationClip {
   name: string;
   mixIn: number;
+  /** Playback length in animation seconds. Omit to use the source animation length. */
+  duration?: number;
 }
 export interface ScheduledClip extends AnimationClip {
   start: number;
@@ -78,7 +81,9 @@ export class AnimationTracks {
     if (
       patch.start !== undefined ||
       this.settings.some((s) => s.start) ||
-      this.sequences.some((clips) => clips.length > 1)
+      this.sequences.some(
+        (clips) => clips.length > 1 || clips.some((c) => c.duration !== undefined),
+      )
     ) {
       this.seekAll(this.cursor);
       return;
@@ -108,7 +113,9 @@ export class AnimationTracks {
     let end = 0,
       available = 0;
     return this.sequences[track].map((clip, index) => {
-      const duration = this.animations.find((animation) => animation.name === clip.name)!.duration;
+      const duration =
+        clip.duration ??
+        this.animations.find((animation) => animation.name === clip.name)!.duration;
       // Prevent three-way overlaps and keep zero-length poses valid.
       const mixIn = index ? Math.min(clip.mixIn, duration, available) : 0;
       const start = end - mixIn;
@@ -125,13 +132,22 @@ export class AnimationTracks {
         throw Error(`Animation not found: ${clip.name}`);
       if (!Number.isFinite(clip.mixIn) || clip.mixIn < 0 || clip.mixIn > 4)
         throw Error('Mix in must be between 0 and 4 seconds.');
+      if (
+        clip.duration !== undefined &&
+        (!Number.isFinite(clip.duration) || clip.duration < 0 || clip.duration > MAX_CLIP_DURATION)
+      )
+        throw Error(`Duration must be between 0 and ${MAX_CLIP_DURATION} seconds.`);
     }
     this.sequences[track] = clips.map((clip, index) => ({
       ...clip,
       mixIn: index ? clip.mixIn : 0,
     }));
-    // Store effective durations so the editor and playback agree after reordering.
-    this.sequences[track] = this.layout(track).map(({ name, mixIn }) => ({ name, mixIn }));
+    // Normalize overlap while preserving optional duration overrides for save/undo and Auto.
+    this.sequences[track] = this.layout(track).map(({ name, mixIn }, index) => ({
+      name,
+      mixIn,
+      ...(clips[index].duration !== undefined ? { duration: clips[index].duration } : {}),
+    }));
     this.seekAll(0);
   }
   get duration() {
@@ -150,8 +166,12 @@ export class AnimationTracks {
     const entry = this.model.state.setAnimation(
       track,
       clip.name,
-      this.sequences[track].length === 1 && settings.loop,
+      this.sequences[track].length === 1 &&
+        this.sequences[track][0].duration === undefined &&
+        settings.loop,
     );
+    // Trim a shortened clip; extended clips hold their source's final pose.
+    entry.animationEnd = Math.min(entry.animation.duration, clip.duration);
     entry.mixDuration = first || settings.speed === 0 ? 0 : clip.mixIn / settings.speed;
     entry.alpha = settings.alpha;
     entry.timeScale = settings.speed;

@@ -640,7 +640,8 @@
       </div>
       <p id="sequenceInfo" class="count"></p>
       <div class="sequence-labels">
-        <span>#</span><span>Animation</span><span>Mix in (s)</span><span>Order / remove</span>
+        <span>#</span><span>Animation</span><span>Duration (s)</span><span>Mix in (s)</span
+        ><span>Order / remove</span>
       </div>
       <div id="sequenceList" class="sequence-list"></div>
       <div class="sequence-add">
@@ -648,8 +649,14 @@
         ><button id="addSequenceClip" class="primary">+ Add clip</button>
       </div>
       <p class="sequence-note">
+        Duration controls how long each clip plays at 1× speed. Leave empty for the original length.
+        Shorter clips are trimmed; longer clips hold the final pose. This does not stretch the
+        animation.
+      </p>
+      <p class="sequence-note">
         Mix in overlaps the previous clip. Values are limited to the available clip lengths to avoid
-        three-way overlaps. The first clip starts at the track offset without a mix.
+        three-way overlaps. A 0.5 s clip followed by a 0.2 s mix starts the next clip at 0.3 s. The
+        first clip starts at the track offset without a mix.
       </p>
       <p class="sequence-note">
         Without music, changes restart the preview at 0. With music, edits keep the current music

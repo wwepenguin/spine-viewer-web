@@ -92,3 +92,40 @@ test('rejects incompatible and incomplete project archives', () => {
     /Unsupported/,
   );
 });
+
+test('project archives preserve custom clip durations and retain Auto on legacy clips', async () => {
+  const snapshot: ProjectSnapshot = {
+    actors: [
+      {
+        source,
+        state: {
+          ...state,
+          sequences: [
+            [
+              { name: 'walk', mixIn: 0, duration: 0.5 },
+              { name: 'run', mixIn: 0.2, duration: 2 },
+            ],
+            [{ name: 'walk', mixIn: 0 }],
+            [],
+            [],
+            [],
+            [],
+          ],
+        },
+      },
+    ],
+    selected: 0,
+    music: { time: 0, rate: 1, loop: false, volume: 0.8, muted: true },
+  };
+  const files = unzipSync(await encodeProject(snapshot));
+  const restored = decodeProject(zipSync(files));
+  assert.deepEqual(restored.actors[0].state.sequences, snapshot.actors[0].state.sequences);
+  const manifest = JSON.parse(strFromU8(files['project.json']));
+  for (const duration of [-1, 7201, '0.5', null]) {
+    manifest.actors[0].state.sequences[0][0].duration = duration;
+    assert.throws(
+      () => decodeProject(zipSync({ ...files, 'project.json': strToU8(JSON.stringify(manifest)) })),
+      /invalid number/,
+    );
+  }
+});

@@ -1301,7 +1301,7 @@ kbd {
   min-width: 8px;
 }
 .sequence-dialog {
-  width: min(690px, 94vw);
+  width: min(790px, 94vw);
   max-height: 85dvh;
   overflow: auto;
   padding: 22px;
@@ -1327,7 +1327,7 @@ kbd {
 .sequence-labels,
 .sequence-row {
   display: grid;
-  grid-template-columns: 24px minmax(110px, 1fr) 84px repeat(3, 28px);
+  grid-template-columns: 24px minmax(110px, 1fr) 100px 84px repeat(3, 28px);
   gap: 7px;
   align-items: center;
 }
@@ -1378,7 +1378,7 @@ kbd {
   }
   .sequence-labels,
   .sequence-row {
-    grid-template-columns: 18px minmax(70px, 1fr) 58px repeat(3, 24px);
+    grid-template-columns: 18px minmax(60px, 1fr) 64px 58px repeat(3, 24px);
     gap: 4px;
   }
 }
