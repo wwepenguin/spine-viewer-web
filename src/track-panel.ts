@@ -1,5 +1,5 @@
 import { TimelineViewport } from './timeline-viewport';
-import { TRACK_COUNT } from './animation-tracks';
+import { TRACK_COUNT, MAX_CLIP_DURATION, type AnimationClip } from './animation-tracks';
 import type { SkeletonViewer } from './viewer';
 import { $ } from './dom';
 import { snapTime } from './snapping';
@@ -142,13 +142,19 @@ export class TrackPanel {
     for (const surface of [$('timeRuler'), $('timelineLanes'), $('musicLane')]) {
       let gesture:
         | {
-            mode: 'pan' | 'seek' | 'clip';
+            mode: 'pan' | 'seek' | 'clip' | 'resize';
             x: number;
             start: number;
             width: number;
             track?: number;
             offset?: number;
             clipStart?: number;
+            clipIndex?: number;
+            duration?: number;
+            minDuration?: number;
+            scale?: number;
+            clips?: AnimationClip[];
+            targets?: number[];
           }
         | undefined;
       const seek = (event: PointerEvent) => {
@@ -181,23 +187,33 @@ export class TrackPanel {
         event.stopPropagation();
         this.follow = false;
         this.dragging = true;
-        const clip = (event.target as Element).closest<HTMLElement>('.animation-clip');
+        const clip = (event.target as Element).closest<HTMLElement>('.animation-clip,.clip-resize');
         if (clip && event.button === 0 && !event.shiftKey) {
           const track = Number(clip.parentElement!.dataset.track);
           const clipIndex = Number(clip.dataset.clip);
           const scale = viewer.trackSettings[track].speed || 1;
           const actorOffset = viewer.music.loaded ? (viewer.active?.startAt ?? 0) : 0;
+          const scheduled = viewer.animationTracks!.layout(track)[clipIndex];
           const clipStart =
-            actorOffset + (viewer.animationTracks?.layout(track)[clipIndex].start ?? 0) / scale;
+            actorOffset + (viewer.trackSettings[track].start ?? 0) + scheduled.start / scale;
+          const resize = clip.classList.contains('clip-resize');
           gesture = {
-            mode: 'clip',
+            mode: resize ? 'resize' : 'clip',
             x: event.clientX,
             start: this.page,
             width: surface.clientWidth,
             track,
             offset: viewer.trackSettings[track].start ?? 0,
-            clipStart,
+            // Moving uses the sequence-local origin; resizing uses the absolute clip start.
+            clipStart: resize ? clipStart : clipStart - (viewer.trackSettings[track].start ?? 0),
+            clipIndex,
+            duration: scheduled.duration,
+            minDuration: scheduled.mixIn,
+            scale,
+            clips: viewer.animationTracks!.sequences[track].map((item) => ({ ...item })),
+            targets: [viewer.timelineTime, ...this.markers],
           };
+          surface.classList.toggle('resizing', resize);
           surface.setPointerCapture(event.pointerId);
           viewer.paused = true;
           viewer.setTrack(track);
@@ -221,7 +237,40 @@ export class TrackPanel {
       surface.onpointermove = (event) => {
         if (!gesture || !surface.hasPointerCapture(event.pointerId)) return;
         if (gesture.mode === 'seek') seek(event);
-        else if (gesture.mode === 'clip') {
+        else if (gesture.mode === 'resize') {
+          const proposedEnd =
+            gesture.clipStart! +
+            gesture.duration! / gesture.scale! +
+            ((event.clientX - gesture.x) / gesture.width) * this.span;
+          const targets = [...gesture.targets!];
+          if (this.snapBeats)
+            targets.push(
+              this.beatOffset +
+                (Math.round(((proposedEnd - this.beatOffset) * this.bpm) / 60) * 60) / this.bpm,
+            );
+          const end = snapTime(
+            proposedEnd,
+            Number($('stepFps').value),
+            targets,
+            (this.span / gesture.width) * 10,
+            this.snap && !event.altKey,
+          );
+          const duration = Math.max(
+            gesture.minDuration!,
+            Math.min(
+              MAX_CLIP_DURATION,
+              Math.round((end - gesture.clipStart!) * gesture.scale! * 1e6) / 1e6,
+            ),
+          );
+          const current = viewer.animationTracks?.layout(gesture.track!)[gesture.clipIndex!];
+          if (current && Math.abs(current.duration - duration) > 1e-6)
+            viewer.setSequence(
+              gesture.clips!.map((item, index) =>
+                index === gesture!.clipIndex ? { ...item, duration } : item,
+              ),
+              gesture.track,
+            );
+        } else if (gesture.mode === 'clip') {
           const proposed =
             gesture.offset! + ((event.clientX - gesture.x) / gesture.width) * this.span;
           const absolute = proposed + gesture.clipStart!;
@@ -254,6 +303,7 @@ export class TrackPanel {
         this.dragging = false;
         gesture = undefined;
         surface.classList.remove('panning');
+        surface.classList.remove('resizing');
       };
       surface.onpointerup = surface.onpointercancel = surface.onlostpointercapture = finish;
     }
@@ -469,7 +519,7 @@ export class TrackPanel {
         const block = document.createElement('span');
         block.className = 'animation-clip';
         block.dataset.clip = String(clipIndex);
-        block.title = `${label} · Mix in ${clip.mixIn.toFixed(2)}s · Drag to move the track sequence. Alt: disable snapping.`;
+        block.title = `${label} · Mix in ${clip.mixIn.toFixed(2)}s · Drag the body to move the track; drag the right edge to resize Duration. Alt: disable snapping.`;
         const name = document.createElement('span');
         name.className = 'clip-label';
         name.textContent = label;
@@ -494,6 +544,46 @@ export class TrackPanel {
             mix.style.width = `${((mixEnd - visibleStart) / this.span) * 100}%`;
             row.lane.append(mix);
           }
+        }
+        // Only the true right edge is editable, never the viewport's clipped boundary.
+        if (end >= this.page && end <= this.page + this.span) {
+          const handle = document.createElement('button');
+          handle.type = 'button';
+          handle.className = 'clip-resize';
+          handle.dataset.clip = String(clipIndex);
+          handle.setAttribute('role', 'slider');
+          handle.setAttribute('aria-label', `Resize Track ${index} clip ${clipIndex + 1} duration`);
+          handle.setAttribute('aria-valuemin', String(clip.mixIn));
+          handle.setAttribute('aria-valuemax', String(MAX_CLIP_DURATION));
+          handle.setAttribute('aria-valuenow', String(clip.duration));
+          handle.setAttribute('aria-valuetext', `${clip.duration.toFixed(3)} seconds`);
+          handle.title = `Duration: ${clip.duration.toFixed(3)} s · Drag to resize; ← / →: one frame. Alt: disable snapping. Minimum: ${clip.mixIn.toFixed(3)} s (Mix in).`;
+          handle.style.left = `max(0px, calc(${((end - this.page) / this.span) * 100}% - 10px))`;
+          handle.onkeydown = (event) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            event.stopPropagation();
+            const step = scale / Number($('stepFps').value);
+            const duration = Math.max(
+              clip.mixIn,
+              Math.min(
+                MAX_CLIP_DURATION,
+                Math.round((clip.duration + (event.key === 'ArrowRight' ? step : -step)) * 1e6) /
+                  1e6,
+              ),
+            );
+            this.viewer.paused = true;
+            this.viewer.setSequence(
+              this.viewer.animationTracks!.sequences[index].map((item, i) =>
+                i === clipIndex ? { ...item, duration } : item,
+              ),
+              index,
+            );
+            row.lane
+              .querySelector<HTMLElement>(`.clip-resize[data-clip="${clipIndex}"]`)
+              ?.focus({ preventScroll: true });
+          };
+          row.lane.append(handle);
         }
       });
     });

@@ -1528,6 +1528,37 @@ kbd {
 .animation-clip {
   cursor: grab;
 }
+.clip-resize {
+  position: absolute;
+  top: 5px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 10px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #8cf8df;
+  border-radius: 0 3px 3px 0;
+  background: #173f48;
+  color: #d1ffff;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.clip-resize::before {
+  content: '';
+  width: 3px;
+  height: 10px;
+  border-inline: 1px solid currentColor;
+  pointer-events: none;
+}
+.clip-resize:hover,
+.clip-resize:focus-visible {
+  background: #36726f;
+}
+.timeline-lanes.resizing,
+.timeline-lanes.resizing * {
+  cursor: ew-resize;
+}
 .music-tools input[type='number'] {
   width: 70px;
   padding: 4px;
