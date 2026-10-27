@@ -628,8 +628,8 @@
         </div>
         <p class="timeline-help">
           &lt; / &gt;: previous / next frame · Click + to edit a sequence · Scroll to zoom · Drag
-          clip body to move a sequence · Drag right edge to resize Duration · Drag ruler or playhead
-          to scrub · Shift + drag / middle drag to pan
+          clip body to move a sequence · Right edge: Duration · Yellow mix area / left grip: Mix in
+          · Drag ruler or playhead to scrub · Shift + drag / middle drag to pan
         </p>
       </section>
     </main>
@@ -657,6 +657,10 @@
         Mix in overlaps the previous clip. Values are limited to the available clip lengths to avoid
         three-way overlaps. A 0.5 s clip followed by a 0.2 s mix starts the next clip at 0.3 s. The
         first clip starts at the track offset without a mix.
+      </p>
+      <p class="sequence-note">
+        On the timeline, drag the yellow mix area or its left grip to adjust Mix in. Drag left to
+        increase the overlap, or right to reduce it to zero. Clip durations stay unchanged.
       </p>
       <p class="sequence-note">
         Without music, changes restart the preview at 0. With music, edits keep the current music

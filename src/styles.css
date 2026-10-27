@@ -1288,14 +1288,15 @@ kbd {
   position: absolute;
   top: 5px;
   height: 22px;
-  z-index: 1;
+  z-index: 3;
   overflow: hidden;
   white-space: nowrap;
   font: 9px/22px monospace;
   color: #ffe9aa;
+  text-indent: 12px;
   border: 1px solid #dbbd65;
-  background: repeating-linear-gradient(135deg, #705e3399 0 3px, #cba45466 3px 6px);
-  pointer-events: none;
+  background: repeating-linear-gradient(135deg, #705e33 0 3px, #9d824a 3px 6px);
+  cursor: ew-resize;
 }
 .animation-clip.pose-clip {
   min-width: 8px;
@@ -1528,7 +1529,8 @@ kbd {
 .animation-clip {
   cursor: grab;
 }
-.clip-resize {
+.clip-resize,
+.mix-resize {
   position: absolute;
   top: 5px;
   z-index: 4;
@@ -1544,7 +1546,8 @@ kbd {
   cursor: ew-resize;
   touch-action: none;
 }
-.clip-resize::before {
+.clip-resize::before,
+.mix-resize::before {
   content: '';
   width: 3px;
   height: 10px;
@@ -1554,6 +1557,17 @@ kbd {
 .clip-resize:hover,
 .clip-resize:focus-visible {
   background: #36726f;
+}
+.mix-resize {
+  z-index: 5;
+  border-color: #ffe17b;
+  border-radius: 3px 0 0 3px;
+  background: #705e33;
+  color: #fff2bd;
+}
+.mix-resize:hover,
+.mix-resize:focus-visible {
+  background: #9d824a;
 }
 .timeline-lanes.resizing,
 .timeline-lanes.resizing * {

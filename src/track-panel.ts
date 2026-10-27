@@ -142,7 +142,7 @@ export class TrackPanel {
     for (const surface of [$('timeRuler'), $('timelineLanes'), $('musicLane')]) {
       let gesture:
         | {
-            mode: 'pan' | 'seek' | 'clip' | 'resize';
+            mode: 'pan' | 'seek' | 'clip' | 'resize' | 'mix';
             x: number;
             start: number;
             width: number;
@@ -152,6 +152,8 @@ export class TrackPanel {
             clipIndex?: number;
             duration?: number;
             minDuration?: number;
+            mixEnd?: number;
+            maxMix?: number;
             scale?: number;
             clips?: AnimationClip[];
             targets?: number[];
@@ -187,33 +189,45 @@ export class TrackPanel {
         event.stopPropagation();
         this.follow = false;
         this.dragging = true;
-        const clip = (event.target as Element).closest<HTMLElement>('.animation-clip,.clip-resize');
+        const clip = (event.target as Element).closest<HTMLElement>(
+          '.animation-clip,.clip-resize,.mix-region,.mix-resize',
+        );
         if (clip && event.button === 0 && !event.shiftKey) {
           const track = Number(clip.parentElement!.dataset.track);
           const clipIndex = Number(clip.dataset.clip);
           const scale = viewer.trackSettings[track].speed || 1;
           const actorOffset = viewer.music.loaded ? (viewer.active?.startAt ?? 0) : 0;
-          const scheduled = viewer.animationTracks!.layout(track)[clipIndex];
+          const schedule = viewer.animationTracks!.layout(track);
+          const scheduled = schedule[clipIndex];
+          const previous = schedule[clipIndex - 1];
           const clipStart =
             actorOffset + (viewer.trackSettings[track].start ?? 0) + scheduled.start / scale;
           const resize = clip.classList.contains('clip-resize');
+          const mixing = clip.matches('.mix-region,.mix-resize');
           gesture = {
-            mode: resize ? 'resize' : 'clip',
+            mode: mixing ? 'mix' : resize ? 'resize' : 'clip',
             x: event.clientX,
             start: this.page,
             width: surface.clientWidth,
             track,
             offset: viewer.trackSettings[track].start ?? 0,
-            // Moving uses the sequence-local origin; resizing uses the absolute clip start.
-            clipStart: resize ? clipStart : clipStart - (viewer.trackSettings[track].start ?? 0),
+            // Moving uses the sequence-local origin; edge edits use the absolute clip start.
+            clipStart:
+              resize || mixing ? clipStart : clipStart - (viewer.trackSettings[track].start ?? 0),
             clipIndex,
             duration: scheduled.duration,
             minDuration: scheduled.mixIn,
+            mixEnd: clipStart + scheduled.mixIn / scale,
+            maxMix: Math.min(
+              4,
+              scheduled.duration,
+              previous ? previous.duration - previous.mixIn : 0,
+            ),
             scale,
             clips: viewer.animationTracks!.sequences[track].map((item) => ({ ...item })),
             targets: [viewer.timelineTime, ...this.markers],
           };
-          surface.classList.toggle('resizing', resize);
+          surface.classList.toggle('resizing', resize || mixing);
           surface.setPointerCapture(event.pointerId);
           viewer.paused = true;
           viewer.setTrack(track);
@@ -237,36 +251,42 @@ export class TrackPanel {
       surface.onpointermove = (event) => {
         if (!gesture || !surface.hasPointerCapture(event.pointerId)) return;
         if (gesture.mode === 'seek') seek(event);
-        else if (gesture.mode === 'resize') {
-          const proposedEnd =
+        else if (gesture.mode === 'resize' || gesture.mode === 'mix') {
+          const mixing = gesture.mode === 'mix';
+          const proposedEdge =
             gesture.clipStart! +
-            gesture.duration! / gesture.scale! +
+            (mixing ? 0 : gesture.duration! / gesture.scale!) +
             ((event.clientX - gesture.x) / gesture.width) * this.span;
           const targets = [...gesture.targets!];
           if (this.snapBeats)
             targets.push(
               this.beatOffset +
-                (Math.round(((proposedEnd - this.beatOffset) * this.bpm) / 60) * 60) / this.bpm,
+                (Math.round(((proposedEdge - this.beatOffset) * this.bpm) / 60) * 60) / this.bpm,
             );
-          const end = snapTime(
-            proposedEnd,
+          const edge = snapTime(
+            proposedEdge,
             Number($('stepFps').value),
             targets,
             (this.span / gesture.width) * 10,
             this.snap && !event.altKey,
           );
-          const duration = Math.max(
-            gesture.minDuration!,
+          const value = Math.max(
+            mixing ? 0 : gesture.minDuration!,
             Math.min(
-              MAX_CLIP_DURATION,
-              Math.round((end - gesture.clipStart!) * gesture.scale! * 1e6) / 1e6,
+              mixing ? gesture.maxMix! : MAX_CLIP_DURATION,
+              Math.round(
+                (mixing ? gesture.mixEnd! - edge : edge - gesture.clipStart!) *
+                  gesture.scale! *
+                  1e6,
+              ) / 1e6,
             ),
           );
+          const key = mixing ? 'mixIn' : 'duration';
           const current = viewer.animationTracks?.layout(gesture.track!)[gesture.clipIndex!];
-          if (current && Math.abs(current.duration - duration) > 1e-6)
+          if (current && Math.abs(current[key] - value) > 1e-6)
             viewer.setSequence(
               gesture.clips!.map((item, index) =>
-                index === gesture!.clipIndex ? { ...item, duration } : item,
+                index === gesture!.clipIndex ? { ...item, [key]: value } : item,
               ),
               gesture.track,
             );
@@ -519,7 +539,7 @@ export class TrackPanel {
         const block = document.createElement('span');
         block.className = 'animation-clip';
         block.dataset.clip = String(clipIndex);
-        block.title = `${label} · Mix in ${clip.mixIn.toFixed(2)}s · Drag the body to move the track; drag the right edge to resize Duration. Alt: disable snapping.`;
+        block.title = `${label} · Mix in ${clip.mixIn.toFixed(2)}s · Drag the body to move the track; right edge: Duration; yellow mix area / left grip: Mix in. Alt: disable snapping.`;
         const name = document.createElement('span');
         name.className = 'clip-label';
         name.textContent = label;
@@ -538,12 +558,56 @@ export class TrackPanel {
           if (mixEnd > visibleStart) {
             const mix = document.createElement('span');
             mix.className = 'mix-region';
+            mix.dataset.clip = String(clipIndex);
+            mix.textContent = `Mix ${clip.mixIn.toFixed(2)}s · ${clip.name}`;
             mix.setAttribute('aria-label', `Mix in ${clip.mixIn.toFixed(2)} seconds`);
-            mix.title = `${clip.name}: Mix in ${clip.mixIn.toFixed(2)}s`;
+            mix.title = `${clip.name}: Mix in ${clip.mixIn.toFixed(3)}s · Drag left to increase; right to decrease. Alt: disable snapping.`;
             mix.style.left = `${((visibleStart - this.page) / this.span) * 100}%`;
             mix.style.width = `${((mixEnd - visibleStart) / this.span) * 100}%`;
             row.lane.append(mix);
           }
+        }
+        // A zero-length mix still has a grip, so it can be dragged into a transition.
+        if (clipIndex > 0 && start >= this.page && start <= this.page + this.span) {
+          const previous = schedule[clipIndex - 1];
+          const maxMix = Math.min(4, clip.duration, previous.duration - previous.mixIn);
+          const handle = document.createElement('button');
+          handle.type = 'button';
+          handle.className = 'mix-resize';
+          handle.dataset.clip = String(clipIndex);
+          handle.setAttribute('role', 'slider');
+          handle.setAttribute('aria-label', `Adjust Track ${index} clip ${clipIndex + 1} Mix in`);
+          handle.setAttribute('aria-valuemin', '0');
+          handle.setAttribute('aria-valuemax', String(maxMix));
+          handle.setAttribute('aria-valuenow', String(clip.mixIn));
+          handle.setAttribute('aria-valuetext', `${clip.mixIn.toFixed(3)} seconds`);
+          handle.disabled = maxMix === 0;
+          handle.title = `Mix in: ${clip.mixIn.toFixed(3)} s · Drag left to increase; right to decrease. ← / →: move the mix start by one frame. Alt: disable snapping. Maximum: ${maxMix.toFixed(3)} s.`;
+          handle.style.left = `min(calc(100% - 10px), ${((start - this.page) / this.span) * 100}%)`;
+          handle.onkeydown = (event) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            event.stopPropagation();
+            const step = scale / Number($('stepFps').value);
+            const mixIn = Math.max(
+              0,
+              Math.min(
+                maxMix,
+                Math.round((clip.mixIn + (event.key === 'ArrowLeft' ? step : -step)) * 1e6) / 1e6,
+              ),
+            );
+            this.viewer.paused = true;
+            this.viewer.setSequence(
+              this.viewer.animationTracks!.sequences[index].map((item, i) =>
+                i === clipIndex ? { ...item, mixIn } : item,
+              ),
+              index,
+            );
+            row.lane
+              .querySelector<HTMLElement>(`.mix-resize[data-clip="${clipIndex}"]`)
+              ?.focus({ preventScroll: true });
+          };
+          row.lane.append(handle);
         }
         // Only the true right edge is editable, never the viewport's clipped boundary.
         if (end >= this.page && end <= this.page + this.span) {
