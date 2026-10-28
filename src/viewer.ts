@@ -285,13 +285,18 @@ export class SkeletonViewer {
     this.onChange?.();
   }
   removeSelected() {
-    const item = this.active;
-    if (!item) return;
-    const index = this.items.indexOf(item);
-    this.items.splice(index, 1);
-    this.active = undefined;
+    if (this.active) this.removeItem(this.active.id);
+  }
+  removeItem(id: number) {
+    const index = this.items.findIndex((item) => item.id === id);
+    if (index < 0) return;
+    const [item] = this.items.splice(index, 1);
+    const selected = item === this.active;
+    if (selected) this.active = undefined;
     this.disposeItem(item);
-    this.selectItem(this.items[Math.min(index, this.items.length - 1)]?.id);
+    this.selectItem(
+      selected ? this.items[Math.min(index, this.items.length - 1)]?.id : this.active?.id,
+    );
     if (this.items.length) this.fit();
   }
   moveSelected(x: number, y: number) {

@@ -132,12 +132,36 @@ import type { AssetCatalog, SkeletonAsset } from './types';
   }
   function renderScene() {
     $('sceneCount').textContent = String(viewer.items.length);
+    $('sceneList').hidden = !viewer.items.length;
+    $('sceneEmpty').hidden = !!viewer.items.length;
     $('sceneList').replaceChildren(
       ...viewer.items.map((item, index) => {
+        const entry = document.createElement('div');
+        entry.className = 'scene-item';
+        entry.setAttribute('role', 'listitem');
         const button = row(item.name, index);
-        button.setAttribute('aria-selected', String(item === viewer.active));
+        button.removeAttribute('role');
+        button.removeAttribute('aria-selected');
+        button.setAttribute('aria-pressed', String(item === viewer.active));
+        button.setAttribute('aria-label', `Select ${item.name} (${index + 1})`);
         button.onclick = () => viewer.selectItem(item.id);
-        return button;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'scene-remove';
+        remove.title = `Remove ${item.name} from stage (Undo to restore)`;
+        remove.setAttribute('aria-label', `Remove ${item.name} (${index + 1}) from stage`);
+        remove.innerHTML =
+          '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>';
+        remove.onclick = () => {
+          viewer.removeItem(item.id);
+          toast(`Removed ${item.name} from stage. Undo to restore.`);
+          const next = $('sceneList').querySelector<HTMLButtonElement>(
+            '.list-option[aria-pressed="true"]',
+          );
+          (next ?? $('sceneEmpty')).focus({ preventScroll: true });
+        };
+        entry.append(button, remove);
+        return entry;
       }),
     );
     for (const id of [
@@ -513,9 +537,12 @@ import type { AssetCatalog, SkeletonAsset } from './types';
   });
   for (const id of ['slotList', 'animationList', 'sceneList'])
     $(id).addEventListener('keydown', (event) => {
-      const buttons = [...$(id).querySelectorAll('button')];
+      const buttons = [...$(id).querySelectorAll<HTMLButtonElement>('.list-option')];
       if (!buttons.length) return;
-      let index = buttons.findIndex((b) => b.getAttribute('aria-selected') === 'true');
+      let index = buttons.findIndex(
+        (b) =>
+          b.getAttribute('aria-selected') === 'true' || b.getAttribute('aria-pressed') === 'true',
+      );
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
         index = Math.max(
@@ -523,7 +550,7 @@ import type { AssetCatalog, SkeletonAsset } from './types';
           Math.min(buttons.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)),
         );
         buttons[index].click();
-        const selected = $(id).querySelectorAll('button')[index];
+        const selected = $(id).querySelectorAll<HTMLButtonElement>('.list-option')[index];
         selected?.focus();
         selected?.scrollIntoView({ block: 'nearest' });
       }

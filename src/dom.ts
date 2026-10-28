@@ -16,6 +16,7 @@ export interface Elements {
   musicEmpty: HTMLElement;
   addToStage: HTMLButtonElement;
   sceneList: HTMLElement;
+  sceneEmpty: HTMLElement;
   sceneCount: HTMLElement;
   sceneX: HTMLInputElement;
   sceneY: HTMLInputElement;

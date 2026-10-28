@@ -348,6 +348,46 @@ h1 span {
   color: #95f2d9;
   box-shadow: inset 3px 0 var(--mint);
 }
+.scene-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 4px;
+}
+.scene-item .list-option {
+  flex: 1;
+  min-width: 0;
+}
+.scene-item .list-option[aria-pressed='true'] {
+  box-shadow: inset 3px 0 var(--mint);
+}
+.scene-remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  background: transparent;
+  border-color: transparent;
+  color: #a8b6c8;
+}
+.scene-remove:hover,
+.scene-remove:focus-visible {
+  color: #ffb5ab;
+  background: #573039;
+  border-color: #b96e75;
+}
+.scene-remove svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
 .list-option:hover {
   background: #273447;
 }
