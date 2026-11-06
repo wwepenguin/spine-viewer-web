@@ -3,8 +3,10 @@ import type { SkeletonViewer } from './viewer';
 import type { SkeletonAsset } from './types';
 import type { AnimationClip, TrackSettings } from './animation-tracks';
 import { MAX_CLIP_DURATION } from './animation-tracks';
+import { boneImageSettings, MAX_BONE_IMAGES, type BoneImageState } from './bone-image-state';
 
 export interface ActorState {
+  boneImages?: BoneImageState[];
   selectedSlot?: string | null;
   locked?: boolean;
   name: string;
@@ -45,6 +47,11 @@ export function captureProject(viewer: SkeletonViewer): ProjectSnapshot {
     actors: viewer.items.map((i) => ({
       source: { ...i.asset.source, entries: [...i.asset.source.entries] },
       state: {
+        ...(i.boneImages.images.length
+          ? {
+              boneImages: i.boneImages.images.map((image) => ({ ...image.state })),
+            }
+          : {}),
         selectedSlot: i.selectedSlot,
         locked: i.locked,
         name: i.name,
@@ -103,6 +110,14 @@ function actorState(value: ActorState): ActorState {
   )
     throw Error('Invalid animation tracks.');
   return {
+    ...(value.boneImages !== undefined
+      ? {
+          boneImages: value.boneImages.map((image) => ({
+            ...boneImageSettings(image),
+            file: image.file,
+          })),
+        }
+      : {}),
     name: string(value.name),
     ...(value.selectedSlot !== undefined
       ? { selectedSlot: value.selectedSlot === null ? null : string(value.selectedSlot) }
@@ -160,7 +175,15 @@ export async function encodeProject(snapshot: ProjectSnapshot) {
     const entries = [];
     for (const entry of actor.source.entries)
       entries.push({ path: entry.path, ...(await put(entry.file)) });
-    actors.push({ state: actor.state, source: { ...actor.source, entries } });
+    const { boneImages, ...state } = actor.state;
+    const images = [];
+    if (boneImages && boneImages.length > MAX_BONE_IMAGES) throw Error('Too many bone images.');
+    for (const image of boneImages ?? [])
+      images.push({ ...boneImageSettings(image), file: await put(image.file) });
+    actors.push({
+      state: { ...state, ...(boneImages !== undefined ? { boneImages: images } : {}) },
+      source: { ...actor.source, entries },
+    });
   }
   const manifest = {
     version: 1,
@@ -220,8 +243,15 @@ export function decodeProject(bytes: Uint8Array): ProjectSnapshot {
         !entries.some((e) => e.path === atlas)
       )
         throw Error('Missing or ambiguous skeleton / atlas.');
+      const images = a.state?.boneImages;
+      if (images !== undefined && (!Array.isArray(images) || images.length > MAX_BONE_IMAGES))
+        throw Error('Invalid bone images.');
+      const boneImages = images?.map((image) => ({
+        ...boneImageSettings(image),
+        file: file(image.file as unknown as { id: string; name: string; type: string }),
+      }));
       return {
-        state: actorState(a.state),
+        state: actorState({ ...a.state, ...(boneImages !== undefined ? { boneImages } : {}) }),
         source: {
           entries,
           skeleton,

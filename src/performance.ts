@@ -198,9 +198,19 @@ export class SkeletonPerformance {
           triangles += (a.triangles?.length || 0) / 3;
         }
       }
+    for (const item of items) {
+      const count = item.boneImages.images.filter((image) => image.root.visible).length;
+      attachments += count;
+      triangles += count * 2;
+    }
     this.$('perfGeometry').textContent = `${attachments} / ${triangles.toLocaleString()}`;
     let bytes = 0;
-    const textures = new Set(items.flatMap((item) => [...item.asset.textures]));
+    const textures = new Set(
+      items.flatMap((item) => [
+        ...item.asset.textures,
+        ...item.boneImages.images.map((image) => image.texture.baseTexture),
+      ]),
+    );
     for (const texture of textures) bytes += texture.realWidth * texture.realHeight * 4;
     this.$('perfTextures').textContent = String(textures.size);
     this.$('perfTextureBytes').textContent = this.mib(bytes);

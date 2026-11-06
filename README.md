@@ -26,37 +26,40 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 ## 程式結構
 
-| 檔案                       | 修改位置                                      |
-| -------------------------- | --------------------------------------------- |
-| `index.html`               | 面板與控制項的 HTML                           |
-| `src/main.ts`              | 介面事件、清單、播放控制及初始化              |
-| `src/animation-tracks.ts`  | 多軌設定、混合、同步定位及姿勢重建            |
-| `src/project.ts`           | ZIP 封裝、格式驗證與場景設定快照              |
-| `src/project-restore.ts`   | 驗證新素材後替換舞台與音訊                    |
-| `src/editor.ts`            | 專案操作與復原交易                            |
-| `src/history.ts`           | 有上限的 Undo／Redo 狀態堆疊                  |
-| `src/music-tools.ts`       | Marker、BPM 與 A–B 循環介面                   |
-| `src/stage-tools.ts`       | 角色變形、顯示、鎖定與圖層介面                |
-| `src/transform.ts`         | Slot 幾何的角色座標變換                       |
-| `src/resource-pool.ts`     | 非同步資源共用與參考計數                      |
-| `src/preferences.ts`       | 本機介面偏好及面板尺寸                        |
-| `src/snapping.ts`          | 時間吸附                                      |
-| `src/music.ts`             | 本機音樂解碼、音訊時鐘、波形與舞台時間換算    |
-| `src/frame-step.ts`        | 逐幀定位與幀邊界計算                          |
-| `src/timeline-viewport.ts` | 純函式狀態：時間軸連續縮放、平移與指針定位    |
-| `src/sequence-editor.ts`   | 同軌序列編輯、排序與 Mix in 控制              |
-| `src/track-panel.ts`       | 下方時間軸、動畫區塊、拖曳與鍵盤定位          |
-| `src/viewer.ts`            | Pixi 場景、動畫、Slot 幾何與標示              |
-| `src/catalog.ts`           | 純函式：檔案分類、atlas 配對、貼圖路徑        |
-| `src/assets.ts`            | File API、圖片解碼、骨架 parser、範例載入     |
-| `src/performance.ts`       | FPS、CPU、實際 WebGL Draw Calls、Mem          |
-| `src/runtime.ts`           | 舊版 pixi-spine 跨 runtime 型別相容層         |
-| `src/types.ts`             | 共用資料模型與公開介面                        |
-| `src/dom.ts`               | HTML ID 對應的元素型別；增加控制項時同步更新  |
-| `src/webmcp.ts`            | 選用的 WebMCP 工具，不影響一般瀏覽器          |
-| `src/styles.css`           | 樣式、響應式介面                              |
-| `public/sample/`           | 官方 Spineboy 3.8 範例，含 JSON / SKEL / WebP |
-| `tests/`                   | 使用 Node test runner 的 TypeScript 測試      |
+| 檔案                       | 修改位置                                          |
+| -------------------------- | ------------------------------------------------- |
+| `index.html`               | 面板與控制項的 HTML                               |
+| `src/main.ts`              | 介面事件、清單、播放控制及初始化                  |
+| `src/animation-tracks.ts`  | 多軌設定、混合、同步定位及姿勢重建                |
+| `src/project.ts`           | ZIP 封裝、格式驗證與場景設定快照                  |
+| `src/project-restore.ts`   | 驗證新素材後替換舞台與音訊                        |
+| `src/editor.ts`            | 專案操作與復原交易                                |
+| `src/history.ts`           | 有上限的 Undo／Redo 狀態堆疊                      |
+| `src/music-tools.ts`       | Marker、BPM 與 A–B 循環介面                       |
+| `src/stage-tools.ts`       | 角色變形、顯示、鎖定與圖層介面                    |
+| `src/bone-image-panel.ts`  | 骨骼圖片上傳、選取與 Offset／Scale／Rotation 介面 |
+| `src/bone-images.ts`       | 圖片貼圖共用、骨骼矩陣跟隨與資源釋放              |
+| `src/bone-image-state.ts`  | 圖片設定驗證與幾何座標                            |
+| `src/transform.ts`         | Slot 幾何的角色座標變換                           |
+| `src/resource-pool.ts`     | 非同步資源共用與參考計數                          |
+| `src/preferences.ts`       | 本機介面偏好及面板尺寸                            |
+| `src/snapping.ts`          | 時間吸附                                          |
+| `src/music.ts`             | 本機音樂解碼、音訊時鐘、波形與舞台時間換算        |
+| `src/frame-step.ts`        | 逐幀定位與幀邊界計算                              |
+| `src/timeline-viewport.ts` | 純函式狀態：時間軸連續縮放、平移與指針定位        |
+| `src/sequence-editor.ts`   | 同軌序列編輯、排序與 Mix in 控制                  |
+| `src/track-panel.ts`       | 下方時間軸、動畫區塊、拖曳與鍵盤定位              |
+| `src/viewer.ts`            | Pixi 場景、動畫、Slot 幾何與標示                  |
+| `src/catalog.ts`           | 純函式：檔案分類、atlas 配對、貼圖路徑            |
+| `src/assets.ts`            | File API、圖片解碼、骨架 parser、範例載入         |
+| `src/performance.ts`       | FPS、CPU、實際 WebGL Draw Calls、Mem              |
+| `src/runtime.ts`           | 舊版 pixi-spine 跨 runtime 型別相容層             |
+| `src/types.ts`             | 共用資料模型與公開介面                            |
+| `src/dom.ts`               | HTML ID 對應的元素型別；增加控制項時同步更新      |
+| `src/webmcp.ts`            | 選用的 WebMCP 工具，不影響一般瀏覽器              |
+| `src/styles.css`           | 樣式、響應式介面                                  |
+| `public/sample/`           | 官方 Spineboy 3.8 範例，含 JSON / SKEL / WebP     |
+| `tests/`                   | 使用 Node test runner 的 TypeScript 測試          |
 
 程式使用 ES module import/export，沒有全域 PIXI、SpineIO 或 script 載入順序依賴。`strict: true`，沒有 `@ts-nocheck`；舊套件未完整宣告的成員集中於 `runtime.ts`，以具體介面描述，第三方 `.d.ts` 使用 `skipLibCheck`。
 
@@ -74,6 +77,8 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 - **Snap** 啟用影格、播放頭與 Marker 吸附；勾 **Beats** 加入節拍吸附。拖曳任一動畫區塊會整串移動該 track 的 sequence，保留 Duration／Mix in；**Alt** 暫時略過吸附。每軌起點為角色的局部秒數；有音樂時再加上角色 Start at。此版不提供單一 clip 的任意空隙或入點裁切。
 - **Scene overview** 在同一刻度顯示所有角色與六軌色帶，點角色名稱或色帶回到該角色的軌道編輯。沒有音樂時每個角色保留獨立時鐘。
 - **Stage** 每個角色右側的垃圾桶圖示可直接移除該角色，也可用 **Remove selected** 刪除目前選取。刪除其他角色時保留目前選取；刪除選取角色後自動選取相鄰角色。可刪到空舞台，再從 Assets 加入或用 **Undo／Redo** 還原；素材來源保留，共用貼圖在最後一個使用者移除後才釋放。Stage 列表的 **↑／↓** 只切換角色，不會觸發刪除。
+- **Bone images**：先選 Stage 角色，再選 Target bone，按 **Upload image** 上傳 PNG／WebP／JPG；存在 `track-bone` 時預設選取它，否則可選任何骨骼。每個角色最多 32 張，單檔最多 32 MB／8192 px。圖片中心綁在骨骼原點，可調 Offset X／Y、Scale、Rotation；使用骨骼局部座標（Y 向上），Scale 1 表示每個圖片像素等於一個骨架單位。圖片會繼承骨骼完整矩陣，以及角色移動／旋轉／縮放／Flip；支援播放、逐格、seek、音樂同步與 inactive bones。顯示在原骨架 slots 上方，不受 slot clipping 或 slot alpha 控制，原始骨架檔不會被修改。
+- Image 下拉可選既有綁圖重新指定骨骼／調整設定，或選 **New image** 再新增；垃圾桶移除該圖。每個角色的綁圖各自獨立；Undo／Redo、Save／Open project ZIP 包含原始圖片及綁定設定，舊 ZIP 仍可開啟。解碼或骨骼不存在時載入失敗保留原舞台；移除圖片、角色或替換專案時釋放貼圖，Performance 也會統計這些圖片的貼圖／三角形。
 
 ## 音樂標記、循環與舞台工具
 
@@ -93,7 +98,7 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 Vite build 附 source map 供除錯；若不想發布原始碼，將 `vite.config.ts` 的 `build.sourcemap` 設成 `false` 後重新打包。pixi-spine 含多個 runtime，正式 JS bundle 較大屬預期；不任意裁掉 runtime 以維持既有相容範圍。
 
-左側 **Assets／Stage／Music／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
+左側 **Assets／Stage／Bone images／Music／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
 
 ## 多骨架舞台（本機版）
 

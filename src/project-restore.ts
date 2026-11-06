@@ -3,6 +3,7 @@ import { MusicTransport } from './music';
 import type { SkeletonViewer, SceneItem } from './viewer';
 import type { SkeletonAsset, AssetCatalog } from './types';
 import type { ActorState, ProjectSnapshot } from './project';
+import { prepareBoneImage, type PreparedBoneImage } from './bone-images';
 
 function applyActor(item: SceneItem, state: ActorState) {
   if (state.selectedSlot && !item.model.skeleton.findSlot(state.selectedSlot))
@@ -30,6 +31,7 @@ function applyActor(item: SceneItem, state: ActorState) {
 }
 export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSnapshot) {
   const assets: { asset: SkeletonAsset; name: string }[] = [];
+  const images: PreparedBoneImage[][] = [];
   const music = new MusicTransport();
   try {
     if (snapshot.audio) await music.load(snapshot.audio);
@@ -51,9 +53,13 @@ export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSn
         source,
       );
       assets.push({ asset, name: state.name });
+      const prepared: PreparedBoneImage[] = [];
+      images.push(prepared);
+      for (const image of state.boneImages ?? []) prepared.push(await prepareBoneImage(image));
     }
   } catch (error) {
     assets.forEach((a) => a.asset.dispose());
+    images.flat().forEach((image) => image.release());
     music.dispose();
     throw error;
   }
@@ -61,11 +67,15 @@ export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSn
   const oldMusic = viewer.music;
   viewer.music = music;
   try {
-    viewer.setScene(assets, (items) =>
-      items.forEach((i, n) => applyActor(i, snapshot.actors[n].state)),
-    );
+    viewer.setScene(assets, (items) => {
+      items.forEach((i, n) => applyActor(i, snapshot.actors[n].state));
+      items.forEach((item, index) =>
+        images[index].forEach((image) => item.boneImages.attach(image)),
+      );
+    });
   } catch (error) {
     viewer.music = oldMusic;
+    images.flat().forEach((image) => image.release());
     music.dispose();
     throw error;
   }

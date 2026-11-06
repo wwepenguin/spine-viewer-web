@@ -2,6 +2,7 @@ import { MusicTransport, animationTime } from './music';
 import { transformPoint, transformVertices } from './transform';
 import { stepFrameTime } from './frame-step';
 import { AnimationTracks, type AnimationClip } from './animation-tracks';
+import { BoneImageLayer } from './bone-images';
 import {
   PIXI,
   createSpine,
@@ -23,6 +24,7 @@ export interface SceneItem {
   model: RuntimeSpine;
   asset: SkeletonAsset;
   animationTracks: AnimationTracks;
+  boneImages: BoneImageLayer;
   paused: boolean;
   speed: number;
   timelineTime: number;
@@ -173,6 +175,7 @@ export class SkeletonViewer {
     this.app.ticker.add(
       () => {
         if (this.dirty) {
+          for (const item of this.items) item.boneImages.sync();
           this.app.render();
           this.renderedFrames++;
           this.dirty = false;
@@ -213,6 +216,7 @@ export class SkeletonViewer {
         model,
         asset,
         animationTracks,
+        boneImages: new BoneImageLayer(model),
         paused: !first,
         speed: 1,
         timelineTime: 0,
@@ -227,6 +231,7 @@ export class SkeletonViewer {
     }
   }
   private disposeItem(item: SceneItem) {
+    item.boneImages.dispose();
     item.model.debug = null;
     item.model.destroy({ children: true, texture: false, baseTexture: false });
     item.asset.dispose();
@@ -240,8 +245,10 @@ export class SkeletonViewer {
       for (const { asset, name } of assets) next.push(this.createItem(asset, name));
       prepare?.(next);
     } catch (error) {
-      for (const item of next)
+      for (const item of next) {
+        item.boneImages.dispose();
         item.model.destroy({ children: true, texture: false, baseTexture: false });
+      }
       for (const { asset } of assets) asset.dispose();
       throw error;
     }
@@ -547,6 +554,7 @@ export class SkeletonViewer {
       )
         vertices.push(...this.geometry(slot, item.asset).vertices);
     }
+    vertices.push(...item.boneImages.vertices());
     return this.bounds(transformVertices(vertices, item.model), item.model.x, item.model.y);
   }
   fit() {

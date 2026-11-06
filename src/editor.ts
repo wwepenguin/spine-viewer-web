@@ -6,6 +6,7 @@ import { EditHistory } from './history';
 import { installMusicTools } from './music-tools';
 import { installStageTools } from './stage-tools';
 import { installPreferences } from './preferences';
+import { installBoneImagePanel } from './bone-image-panel';
 import type { ProjectSnapshot } from './project';
 
 export function installEditor(
@@ -73,7 +74,13 @@ export function installEditor(
           ...a.source,
           entries: a.source.entries.map((e) => ({ path: e.path, id: fileId(e.file) })),
         },
-        state: { ...a.state, time: 0, track: 0, selectedSlot: null },
+        state: {
+          ...a.state,
+          time: 0,
+          track: 0,
+          selectedSlot: null,
+          boneImages: a.state.boneImages?.map((image) => ({ ...image, file: fileId(image.file) })),
+        },
       })),
       audio: fileId(s.audio),
       music: { ...s.music, time: 0 },
@@ -153,5 +160,6 @@ export function installEditor(
   record();
   installMusicTools(viewer, report);
   installStageTools(viewer);
+  installBoneImagePanel(viewer, report);
   installPreferences(viewer, timeline);
 }

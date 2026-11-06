@@ -129,3 +129,35 @@ test('project archives preserve custom clip durations and retain Auto on legacy 
     );
   }
 });
+
+test('bone image files round-trip with transforms and deduplicate across actors', async () => {
+  const image = new File(['image-payload'], 'badge.webp', { type: 'image/webp' });
+  const boneImages = [{ file: image, bone: 'track-bone', x: 12, y: -3, scale: 0.5, rotation: 35 }];
+  const snapshot: ProjectSnapshot = {
+    actors: [
+      { source, state: { ...state, boneImages } },
+      { source, state: { ...state, boneImages } },
+    ],
+    selected: 0,
+    music: { time: 0, rate: 1, loop: false, volume: 0.8, muted: false },
+  };
+  const files = unzipSync(await encodeProject(snapshot));
+  assert.equal(Object.keys(files).length, 4);
+  const restored = decodeProject(zipSync(files));
+  const first = restored.actors[0].state.boneImages![0];
+  assert.equal(await first.file.text(), 'image-payload');
+  assert.equal(first.file, restored.actors[1].state.boneImages![0].file);
+  assert.deepEqual({ ...first, file: null }, { ...boneImages[0], file: null });
+  const manifest = JSON.parse(strFromU8(files['project.json']));
+  manifest.actors[0].state.boneImages[0].scale = 0;
+  assert.throws(
+    () => decodeProject(zipSync({ ...files, 'project.json': strToU8(JSON.stringify(manifest)) })),
+    /bone image transform/,
+  );
+  manifest.actors[0].state.boneImages[0].scale = 1;
+  manifest.actors[0].state.boneImages[0].file.id = 'assets/missing';
+  assert.throws(
+    () => decodeProject(zipSync({ ...files, 'project.json': strToU8(JSON.stringify(manifest)) })),
+    /Missing project asset/,
+  );
+});
