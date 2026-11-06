@@ -62,12 +62,19 @@ export async function acquireNumberFont(asset: NumberFontAsset) {
     }
   });
 }
-export function checkNumberGlyphs(text: string, fontName?: string) {
-  if (!fontName) return;
+/** Keep Unicode code points supported by the selected font; spaces retain BMFont spacing. */
+export function filterNumberGlyphs(text: string, fontName?: string) {
+  if (!fontName) return { text, removed: [] as string[] };
   const font = PIXI.BitmapFont.available[fontName];
   if (!font) throw Error('Bitmap font is no longer available.');
-  const missing = [
-    ...new Set([...text].filter((c) => c !== ' ' && !font.chars[c.codePointAt(0)!])),
-  ];
-  if (missing.length) throw Error(`Bitmap font is missing characters: ${missing.join(' ')}`);
+  const supported = (c: string) => c === ' ' || !!font.chars[c.codePointAt(0)!];
+  const kept = [...text].filter(supported).join('');
+  return {
+    text: kept.trim() ? kept : '',
+    removed: [...new Set([...text].filter((c) => !supported(c)))],
+  };
+}
+export function checkNumberGlyphs(text: string, fontName?: string) {
+  const { removed } = filterNumberGlyphs(text, fontName);
+  if (removed.length) throw Error(`Bitmap font is missing characters: ${removed.join(' ')}`);
 }

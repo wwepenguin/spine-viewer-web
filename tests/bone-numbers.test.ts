@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PIXI, type RuntimeSpine } from '../src/runtime';
 import { BoneNumberLayer } from '../src/bone-numbers';
+import { filterNumberGlyphs, checkNumberGlyphs } from '../src/number-font';
 import {
   boneNumberSettings,
   bitmapFontPages,
@@ -99,6 +100,11 @@ test('bitmap numbers center visible glyphs, follow slots, replace placeholders a
   assert.equal(entry.root.parent, model);
   assert.equal(placeholder.renderable, true);
   assert.equal(layer.vertices().length, 8);
+  layer.update(0, { text: '' });
+  assert.equal(entry.display.visible, false);
+  assert.deepEqual(layer.vertices(), []);
+  layer.update(0, { text: 'x100' });
+  assert.equal(entry.display.visible, true);
   bone.active = false;
   layer.sync();
   assert.equal(entry.root.visible, false);
@@ -138,7 +144,6 @@ test('BMFont pages support game XML, text, nested names and reject ambiguity', (
   assert.throws(() => matchFontPage('a&b.png', [page, page]), /exactly one/);
   assert.throws(() => bitmapFontPages('<font/>'), /unique pages/);
   for (const patch of [
-    { text: '' },
     { text: ' ' },
     { text: '123\n45' },
     { color: 'red' },
@@ -146,4 +151,28 @@ test('BMFont pages support game XML, text, nested names and reject ambiguity', (
     { maxWidth: -1 },
   ])
     assert.throws(() => boneNumberSettings({ ...state, ...patch }), /Invalid/);
+  assert.equal(boneNumberSettings({ ...state, text: '' }).text, '');
+});
+
+test('font filtering preserves supported Unicode glyphs and removes duplicates from the notice', () => {
+  const name = 'filter_test';
+  // Only glyph coverage is read here; no canvas, texture or font installation is needed.
+  PIXI.BitmapFont.available[name] = {
+    chars: Object.fromEntries([...'0123456789😀'].map((c) => [c.codePointAt(0), {}])),
+  } as PIXI.BitmapFont;
+  try {
+    assert.deepEqual(filterNumberGlyphs('x1,234.50😀x?', name), {
+      text: '123450😀',
+      removed: ['x', ',', '.', '?'],
+    });
+    assert.deepEqual(filterNumberGlyphs('ABC', name), { text: '', removed: ['A', 'B', 'C'] });
+    assert.deepEqual(filterNumberGlyphs(' x 1 ', name), { text: '  1 ', removed: ['x'] });
+    assert.deepEqual(filterNumberGlyphs(' ', name), { text: '', removed: [] });
+    assert.deepEqual(filterNumberGlyphs('x100'), { text: 'x100', removed: [] });
+    assert.throws(() => checkNumberGlyphs('x100', name), /missing characters/);
+    assert.doesNotThrow(() => checkNumberGlyphs('', name));
+    assert.throws(() => filterNumberGlyphs('1', 'missing_test_font'), /no longer available/);
+  } finally {
+    delete PIXI.BitmapFont.available[name];
+  }
 });

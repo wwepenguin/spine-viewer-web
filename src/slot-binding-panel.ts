@@ -2,6 +2,7 @@ import type { SceneItem, SkeletonViewer } from './viewer';
 import { prepareBoneImage } from './bone-images';
 import { prepareBoneNumber } from './bone-numbers';
 import type { BoneNumberState } from './bone-number-state';
+import { filterNumberGlyphs } from './number-font';
 
 /** One editor for both attachment types; selecting a slot never moves an existing binding. */
 export function installSlotBindingPanel(viewer: SkeletonViewer) {
@@ -53,11 +54,13 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
     loading = false,
     editRevision = 0,
     editError = '',
+    editNotice = '',
     force = true;
   function cancelPending() {
     editRevision++;
     loading = false;
     editError = '';
+    editNotice = '';
   }
   function destination() {
     return targetValue
@@ -172,6 +175,7 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
     const count = matchingImages().length + matchingNumbers().length;
     el('bindingHint').textContent =
       editError ||
+      editNotice ||
       (loading ? 'Loading content…' : '') ||
       (!actor
         ? 'Select a skeleton on the stage first.'
@@ -208,7 +212,8 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
         (type.value === 'image' && input.closest('#bindingNumberFields'))
       )
         continue;
-      if (!input.validity.valid || input.value === '') throw Error('Enter valid content settings.');
+      if (!input.validity.valid || (input !== text && input.value === ''))
+        throw Error('Enter valid content settings.');
     }
     const [mount, name] = destination();
     return {
@@ -234,10 +239,17 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
       selectedImage = library.images[Number(image.value)],
       revision = ++editRevision;
     editError = '';
+    editNotice = '';
     loading = false;
     if (!item || !destination()[1]) return;
     const oldImages = matchingImages(),
       oldNumbers = matchingNumbers();
+    const selection = text.selectionStart;
+    const originalText = text.value;
+    const notice = (removed: string[], value: string) => {
+      if (removed.length)
+        editNotice = `Removed unsupported characters: ${removed.map((c) => JSON.stringify(c)).join(', ')}.${value ? '' : ' No supported characters remain; enter a new value.'}`;
+    };
     const current = () =>
       revision === editRevision &&
       viewer.active === item &&
@@ -271,9 +283,20 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
         oldNumbers[0] &&
         oldNumbers[0].state.font?.file === state.font?.file
       ) {
+        const filtered = filterNumberGlyphs(state.text, oldNumbers[0].font?.name);
+        state.text = filtered.text;
         item.boneNumbers.update(item.boneNumbers.numbers.indexOf(oldNumbers[0]), state);
         removeOld(oldNumbers[0]);
+        notice(filtered.removed, state.text);
+        force = true;
         changed();
+        if (document.activeElement === text && selection !== null) {
+          const caret = filterNumberGlyphs(
+            originalText.slice(0, selection),
+            oldNumbers[0].font?.name,
+          ).text.length;
+          text.setSelectionRange(caret, caret);
+        }
         return;
       }
       if (kind === 'image' && oldImages[0] && oldImages[0].state.file === selectedImage) {
@@ -308,7 +331,7 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
           rotation: state.rotation,
           hidePlaceholder: state.hidePlaceholder,
         });
-      } else if (kind === 'number') prepared = await prepareBoneNumber(state);
+      } else if (kind === 'number') prepared = await prepareBoneNumber(state, true);
       if (!current()) {
         prepared?.release();
         prepared = undefined;
@@ -324,6 +347,7 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
         if (oldNumbers[0])
           item.boneNumbers.replace(item.boneNumbers.numbers.indexOf(oldNumbers[0]), numberResource);
         else item.boneNumbers.attach(numberResource);
+        notice(numberResource.removedGlyphs ?? [], numberResource.state.text);
       }
       prepared = undefined; // Layer now owns the resource.
       removeOld();

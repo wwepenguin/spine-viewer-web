@@ -210,7 +210,11 @@ export class SkeletonPerformance {
       for (const number of item.boneNumbers.numbers) {
         const slot =
           number.state.mount === 'slot' ? item.model.skeleton.findSlot(number.state.target) : null;
-        if (!number.root.visible || (slot && (!slot.getAttachment() || slot.color.a <= 0)))
+        if (
+          !number.state.text ||
+          !number.root.visible ||
+          (slot && (!slot.getAttachment() || slot.color.a <= 0))
+        )
           continue;
         const glyphs =
           number.display instanceof PIXI.BitmapText

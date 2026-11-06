@@ -27,7 +27,7 @@ export function boneNumberSettings(value: BoneNumberSettings): BoneNumberSetting
     !value ||
     !['bone', 'slot'].includes(value.mount) ||
     typeof value.text !== 'string' ||
-    !value.text.trim().length ||
+    (value.text.length > 0 && !value.text.trim().length) ||
     value.text.length > 128 ||
     /[\r\n\t]/.test(value.text) ||
     typeof value.color !== 'string' ||

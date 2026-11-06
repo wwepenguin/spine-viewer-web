@@ -1,18 +1,31 @@
 import { PIXI, type RuntimeSpine } from './runtime';
 import { boneImageVertices } from './bone-image-state';
 import { boneNumberSettings, MAX_BONE_NUMBERS, type BoneNumberState } from './bone-number-state';
-import { acquireNumberFont, checkNumberGlyphs, type NumberFontResource } from './number-font';
+import {
+  acquireNumberFont,
+  checkNumberGlyphs,
+  filterNumberGlyphs,
+  type NumberFontResource,
+} from './number-font';
 import { syncSlotPlaceholders, syncSlotTransform } from './slot-overlays';
 
 export interface PreparedBoneNumber {
   state: BoneNumberState;
   font?: NumberFontResource;
+  removedGlyphs?: string[];
   release(): void;
 }
-export async function prepareBoneNumber(state: BoneNumberState): Promise<PreparedBoneNumber> {
+export async function prepareBoneNumber(
+  state: BoneNumberState,
+  filterUnsupported = false,
+): Promise<PreparedBoneNumber> {
   const settings = boneNumberSettings(state);
   const lease = state.font ? await acquireNumberFont(state.font) : undefined;
   try {
+    const filtered = filterUnsupported
+      ? filterNumberGlyphs(settings.text, lease?.value.name)
+      : undefined;
+    if (filtered) settings.text = filtered.text;
     checkNumberGlyphs(settings.text, lease?.value.name);
     return {
       state: {
@@ -20,6 +33,7 @@ export async function prepareBoneNumber(state: BoneNumberState): Promise<Prepare
         ...(state.font ? { font: { file: state.font.file, pages: lease!.value.files } } : {}),
       },
       font: lease?.value,
+      ...(filtered?.removed.length ? { removedGlyphs: filtered.removed } : {}),
       release: () => lease?.release(),
     };
   } catch (error) {
@@ -78,6 +92,7 @@ export class BoneNumberLayer {
   private style(entry: NumberEntry) {
     const { state, display } = entry;
     display.text = state.text;
+    display.visible = state.text.length > 0;
     if (display instanceof PIXI.BitmapText) {
       display.fontSize = state.fontSize;
       display.tint = Number.parseInt(state.color.slice(1), 16);
@@ -164,6 +179,7 @@ export class BoneNumberLayer {
   }
   vertices() {
     return this.numbers.flatMap((entry) => {
+      if (!entry.state.text) return [];
       const slot =
         entry.state.mount === 'slot' ? this.model.skeleton.findSlot(entry.state.target) : null;
       const bone = slot?.bone ?? this.model.skeleton.findBone(entry.state.target);

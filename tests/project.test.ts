@@ -236,7 +236,7 @@ test('number content, slot mounts and bitmap-font files survive project round tr
   const snapshot: ProjectSnapshot = {
     actors: [
       { source, state: { ...state, boneNumbers: [number] } },
-      { source, state: { ...state, boneNumbers: [{ ...number, text: 'x20' }] } },
+      { source, state: { ...state, boneNumbers: [{ ...number, text: '' }] } },
     ],
     selected: 1,
     music: { time: 0, rate: 1, loop: false, volume: 0.8, muted: false },
@@ -250,7 +250,7 @@ test('number content, slot mounts and bitmap-font files survive project round tr
   assert.equal(first.font!.file, second.font!.file);
   assert.equal(first.font!.pages[0], second.font!.pages[0]);
   assert.equal(await first.font!.pages[0].text(), 'page');
-  assert.equal(second.text, 'x20');
+  assert.equal(second.text, ''); // Empty content after filtering remains empty after reopening.
   const manifest = JSON.parse(strFromU8(files['project.json']));
   manifest.actors[0].state.boneNumbers[0].fontSize = 0;
   assert.throws(
