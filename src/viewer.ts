@@ -3,6 +3,7 @@ import { transformPoint, transformVertices } from './transform';
 import { stepFrameTime } from './frame-step';
 import { AnimationTracks, type AnimationClip } from './animation-tracks';
 import { BoneImageLayer } from './bone-images';
+import { BoneNumberLayer } from './bone-numbers';
 import {
   PIXI,
   createSpine,
@@ -25,6 +26,7 @@ export interface SceneItem {
   asset: SkeletonAsset;
   animationTracks: AnimationTracks;
   boneImages: BoneImageLayer;
+  boneNumbers: BoneNumberLayer;
   paused: boolean;
   speed: number;
   timelineTime: number;
@@ -175,7 +177,10 @@ export class SkeletonViewer {
     this.app.ticker.add(
       () => {
         if (this.dirty) {
-          for (const item of this.items) item.boneImages.sync();
+          for (const item of this.items) {
+            item.boneImages.sync();
+            item.boneNumbers.sync();
+          }
           this.app.render();
           this.renderedFrames++;
           this.dirty = false;
@@ -217,6 +222,7 @@ export class SkeletonViewer {
         asset,
         animationTracks,
         boneImages: new BoneImageLayer(model),
+        boneNumbers: new BoneNumberLayer(model),
         paused: !first,
         speed: 1,
         timelineTime: 0,
@@ -231,6 +237,7 @@ export class SkeletonViewer {
     }
   }
   private disposeItem(item: SceneItem) {
+    item.boneNumbers.dispose();
     item.boneImages.dispose();
     item.model.debug = null;
     item.model.destroy({ children: true, texture: false, baseTexture: false });
@@ -246,6 +253,7 @@ export class SkeletonViewer {
       prepare?.(next);
     } catch (error) {
       for (const item of next) {
+        item.boneNumbers.dispose();
         item.boneImages.dispose();
         item.model.destroy({ children: true, texture: false, baseTexture: false });
       }
@@ -544,6 +552,7 @@ export class SkeletonViewer {
   private itemBounds(item: SceneItem) {
     const vertices: number[] = [];
     for (const slot of item.model.skeleton.slots) {
+      if (item.boneNumbers.isSlotHidden(slot.data.name)) continue;
       const a = slot.getAttachment();
       if (
         a &&
@@ -555,6 +564,7 @@ export class SkeletonViewer {
         vertices.push(...this.geometry(slot, item.asset).vertices);
     }
     vertices.push(...item.boneImages.vertices());
+    vertices.push(...item.boneNumbers.vertices());
     return this.bounds(transformVertices(vertices, item.model), item.model.x, item.model.y);
   }
   fit() {

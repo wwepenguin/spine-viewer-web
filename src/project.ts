@@ -4,8 +4,10 @@ import type { SkeletonAsset } from './types';
 import type { AnimationClip, TrackSettings } from './animation-tracks';
 import { MAX_CLIP_DURATION } from './animation-tracks';
 import { boneImageSettings, MAX_BONE_IMAGES, type BoneImageState } from './bone-image-state';
+import { boneNumberSettings, MAX_BONE_NUMBERS, type BoneNumberState } from './bone-number-state';
 
 export interface ActorState {
+  boneNumbers?: BoneNumberState[];
   boneImages?: BoneImageState[];
   selectedSlot?: string | null;
   locked?: boolean;
@@ -47,6 +49,16 @@ export function captureProject(viewer: SkeletonViewer): ProjectSnapshot {
     actors: viewer.items.map((i) => ({
       source: { ...i.asset.source, entries: [...i.asset.source.entries] },
       state: {
+        ...(i.boneNumbers.numbers.length
+          ? {
+              boneNumbers: i.boneNumbers.numbers.map((number) => ({
+                ...number.state,
+                ...(number.state.font
+                  ? { font: { file: number.state.font.file, pages: [...number.state.font.pages] } }
+                  : {}),
+              })),
+            }
+          : {}),
         ...(i.boneImages.images.length
           ? {
               boneImages: i.boneImages.images.map((image) => ({ ...image.state })),
@@ -110,6 +122,14 @@ function actorState(value: ActorState): ActorState {
   )
     throw Error('Invalid animation tracks.');
   return {
+    ...(value.boneNumbers !== undefined
+      ? {
+          boneNumbers: value.boneNumbers.map((number) => ({
+            ...boneNumberSettings(number),
+            ...(number.font ? { font: number.font } : {}),
+          })),
+        }
+      : {}),
     ...(value.boneImages !== undefined
       ? {
           boneImages: value.boneImages.map((image) => ({
@@ -175,13 +195,29 @@ export async function encodeProject(snapshot: ProjectSnapshot) {
     const entries = [];
     for (const entry of actor.source.entries)
       entries.push({ path: entry.path, ...(await put(entry.file)) });
-    const { boneImages, ...state } = actor.state;
+    const { boneImages, boneNumbers, ...state } = actor.state;
     const images = [];
     if (boneImages && boneImages.length > MAX_BONE_IMAGES) throw Error('Too many bone images.');
     for (const image of boneImages ?? [])
       images.push({ ...boneImageSettings(image), file: await put(image.file) });
+    const numbers = [];
+    if (boneNumbers && boneNumbers.length > MAX_BONE_NUMBERS) throw Error('Too many bone numbers.');
+    for (const number of boneNumbers ?? []) {
+      const pages = [];
+      if (number.font && (!Array.isArray(number.font.pages) || number.font.pages.length > 16))
+        throw Error('Invalid number font.');
+      for (const page of number.font?.pages ?? []) pages.push(await put(page));
+      numbers.push({
+        ...boneNumberSettings(number),
+        ...(number.font ? { font: { file: await put(number.font.file), pages } } : {}),
+      });
+    }
     actors.push({
-      state: { ...state, ...(boneImages !== undefined ? { boneImages: images } : {}) },
+      state: {
+        ...state,
+        ...(boneImages !== undefined ? { boneImages: images } : {}),
+        ...(boneNumbers !== undefined ? { boneNumbers: numbers } : {}),
+      },
       source: { ...actor.source, entries },
     });
   }
@@ -244,6 +280,28 @@ export function decodeProject(bytes: Uint8Array): ProjectSnapshot {
       )
         throw Error('Missing or ambiguous skeleton / atlas.');
       const images = a.state?.boneImages;
+      const numbers = a.state?.boneNumbers;
+      if (numbers !== undefined && (!Array.isArray(numbers) || numbers.length > MAX_BONE_NUMBERS))
+        throw Error('Invalid bone numbers.');
+      const boneNumbers = numbers?.map((number) => {
+        const settings = boneNumberSettings(number);
+        if (!number.font) return settings;
+        if (
+          !Array.isArray(number.font.pages) ||
+          !number.font.pages.length ||
+          number.font.pages.length > 16
+        )
+          throw Error('Invalid number font pages.');
+        return {
+          ...settings,
+          font: {
+            file: file(number.font.file as unknown as Parameters<typeof file>[0]),
+            pages: number.font.pages.map((page) =>
+              file(page as unknown as Parameters<typeof file>[0]),
+            ),
+          },
+        };
+      });
       if (images !== undefined && (!Array.isArray(images) || images.length > MAX_BONE_IMAGES))
         throw Error('Invalid bone images.');
       const boneImages = images?.map((image) => ({
@@ -251,7 +309,11 @@ export function decodeProject(bytes: Uint8Array): ProjectSnapshot {
         file: file(image.file as unknown as { id: string; name: string; type: string }),
       }));
       return {
-        state: actorState({ ...a.state, ...(boneImages !== undefined ? { boneImages } : {}) }),
+        state: actorState({
+          ...a.state,
+          ...(boneImages !== undefined ? { boneImages } : {}),
+          ...(boneNumbers !== undefined ? { boneNumbers } : {}),
+        }),
         source: {
           entries,
           skeleton,

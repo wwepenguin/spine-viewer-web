@@ -1502,6 +1502,15 @@ kbd {
   min-width: 0;
   padding: 5px 8px;
 }
+.bone-number-panel input[type='text'] {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: #222c3b;
+}
 .scene-actions button {
   flex: 1;
   font-size: 12px;

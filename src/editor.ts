@@ -7,6 +7,7 @@ import { installMusicTools } from './music-tools';
 import { installStageTools } from './stage-tools';
 import { installPreferences } from './preferences';
 import { installBoneImagePanel } from './bone-image-panel';
+import { installBoneNumberPanel } from './bone-number-panel';
 import type { ProjectSnapshot } from './project';
 
 export function installEditor(
@@ -80,6 +81,12 @@ export function installEditor(
           track: 0,
           selectedSlot: null,
           boneImages: a.state.boneImages?.map((image) => ({ ...image, file: fileId(image.file) })),
+          boneNumbers: a.state.boneNumbers?.map((number) => ({
+            ...number,
+            font: number.font
+              ? { file: fileId(number.font.file), pages: number.font.pages.map(fileId) }
+              : undefined,
+          })),
         },
       })),
       audio: fileId(s.audio),
@@ -161,5 +168,6 @@ export function installEditor(
   installMusicTools(viewer, report);
   installStageTools(viewer);
   installBoneImagePanel(viewer, report);
+  installBoneNumberPanel(viewer, report);
   installPreferences(viewer, timeline);
 }

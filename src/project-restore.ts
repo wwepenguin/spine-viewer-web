@@ -4,6 +4,7 @@ import type { SkeletonViewer, SceneItem } from './viewer';
 import type { SkeletonAsset, AssetCatalog } from './types';
 import type { ActorState, ProjectSnapshot } from './project';
 import { prepareBoneImage, type PreparedBoneImage } from './bone-images';
+import { prepareBoneNumber, type PreparedBoneNumber } from './bone-numbers';
 
 function applyActor(item: SceneItem, state: ActorState) {
   if (state.selectedSlot && !item.model.skeleton.findSlot(state.selectedSlot))
@@ -32,6 +33,7 @@ function applyActor(item: SceneItem, state: ActorState) {
 export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSnapshot) {
   const assets: { asset: SkeletonAsset; name: string }[] = [];
   const images: PreparedBoneImage[][] = [];
+  const numbers: PreparedBoneNumber[][] = [];
   const music = new MusicTransport();
   try {
     if (snapshot.audio) await music.load(snapshot.audio);
@@ -56,10 +58,15 @@ export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSn
       const prepared: PreparedBoneImage[] = [];
       images.push(prepared);
       for (const image of state.boneImages ?? []) prepared.push(await prepareBoneImage(image));
+      const preparedNumbers: PreparedBoneNumber[] = [];
+      numbers.push(preparedNumbers);
+      for (const number of state.boneNumbers ?? [])
+        preparedNumbers.push(await prepareBoneNumber(number));
     }
   } catch (error) {
     assets.forEach((a) => a.asset.dispose());
     images.flat().forEach((image) => image.release());
+    numbers.flat().forEach((number) => number.release());
     music.dispose();
     throw error;
   }
@@ -72,10 +79,14 @@ export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSn
       items.forEach((item, index) =>
         images[index].forEach((image) => item.boneImages.attach(image)),
       );
+      items.forEach((item, index) =>
+        numbers[index].forEach((number) => item.boneNumbers.attach(number)),
+      );
     });
   } catch (error) {
     viewer.music = oldMusic;
     images.flat().forEach((image) => image.release());
+    numbers.flat().forEach((number) => number.release());
     music.dispose();
     throw error;
   }

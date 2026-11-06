@@ -179,8 +179,9 @@ export class SkeletonPerformance {
       `${items.reduce((n, item) => n + item.model.skeleton.bones.length, 0)} / ${items.reduce((n, item) => n + item.model.skeleton.slots.length, 0)}`;
     let attachments = 0,
       triangles = 0;
-    for (const { model } of items)
+    for (const { model, boneNumbers } of items)
       for (const slot of model.skeleton.slots) {
+        if (boneNumbers.isSlotHidden(slot.data.name)) continue;
         const a = slot.getAttachment();
         if (
           !a ||
@@ -202,6 +203,18 @@ export class SkeletonPerformance {
       const count = item.boneImages.images.filter((image) => image.root.visible).length;
       attachments += count;
       triangles += count * 2;
+      for (const number of item.boneNumbers.numbers) {
+        const slot =
+          number.state.mount === 'slot' ? item.model.skeleton.findSlot(number.state.target) : null;
+        if (!number.root.visible || (slot && (!slot.getAttachment() || slot.color.a <= 0)))
+          continue;
+        const glyphs =
+          number.display instanceof PIXI.BitmapText
+            ? [...number.state.text].filter((c) => c !== ' ').length
+            : 1;
+        attachments += glyphs;
+        triangles += glyphs * 2;
+      }
     }
     this.$('perfGeometry').textContent = `${attachments} / ${triangles.toLocaleString()}`;
     let bytes = 0;
@@ -209,6 +222,11 @@ export class SkeletonPerformance {
       items.flatMap((item) => [
         ...item.asset.textures,
         ...item.boneImages.images.map((image) => image.texture.baseTexture),
+        ...item.boneNumbers.numbers.flatMap((number) =>
+          number.font
+            ? number.font.pages.map((page) => page.texture.baseTexture)
+            : [(number.display as PIXI.Text).texture.baseTexture],
+        ),
       ]),
     );
     for (const texture of textures) bytes += texture.realWidth * texture.realHeight * 4;

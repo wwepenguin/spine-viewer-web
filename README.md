@@ -40,6 +40,10 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 | `src/bone-image-panel.ts`  | 骨骼圖片上傳、選取與 Offset／Scale／Rotation 介面 |
 | `src/bone-images.ts`       | 圖片貼圖共用、骨骼矩陣跟隨與資源釋放              |
 | `src/bone-image-state.ts`  | 圖片設定驗證與幾何座標                            |
+| `src/bone-number-panel.ts` | 數字／倍率、掛點與字型匯入介面                    |
+| `src/bone-numbers.ts`      | 數字綁定骨骼／slot、置中與佔位圖還原              |
+| `src/number-font.ts`       | BMFont 字型載入、缺字檢查與資源共用               |
+| `src/bone-number-state.ts` | 數字設定與 BMFont 頁面驗證                        |
 | `src/transform.ts`         | Slot 幾何的角色座標變換                           |
 | `src/resource-pool.ts`     | 非同步資源共用與參考計數                          |
 | `src/preferences.ts`       | 本機介面偏好及面板尺寸                            |
@@ -80,6 +84,12 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 - **Bone images**：先選 Stage 角色，再選 Target bone，按 **Upload image** 上傳 PNG／WebP／JPG；存在 `track-bone` 時預設選取它，否則可選任何骨骼。每個角色最多 32 張，單檔最多 32 MB／8192 px。圖片中心綁在骨骼原點，可調 Offset X／Y、Scale、Rotation；使用骨骼局部座標（Y 向上），Scale 1 表示每個圖片像素等於一個骨架單位。圖片會繼承骨骼完整矩陣，以及角色移動／旋轉／縮放／Flip；支援播放、逐格、seek、音樂同步與 inactive bones。顯示在原骨架 slots 上方，不受 slot clipping 或 slot alpha 控制，原始骨架檔不會被修改。
 - Image 下拉可選既有綁圖重新指定骨骼／調整設定，或選 **New image** 再新增；垃圾桶移除該圖。每個角色的綁圖各自獨立；Undo／Redo、Save／Open project ZIP 包含原始圖片及綁定設定，舊 ZIP 仍可開啟。解碼或骨骼不存在時載入失敗保留原舞台；移除圖片、角色或替換專案時釋放貼圖，Performance 也會統計這些圖片的貼圖／三角形。
 
+- **Bone numbers**：選擇 Target slot / bone，輸入 **Display text**（例如 `x100`、`12,345.67`），按 **Add number**；數值即時更新。可調 Font size、Color、Spacing、Max width（0 關閉）、Offset、Scale、Rotation。文字依可見字形置中，Max width 超出時等比縮小，不會改動原字型。每個角色最多 64 個數字，支援不同掛點／字型與刪除。
+- 預設使用 Arial；新增數字後按 **Load bitmap font**，同時選取一份 `.fnt` 與其引用的 PNG／WebP／JPG 圖片（支援 XML／文字 BMFont、多頁）。**System font** 切回 Arial。字型缺少輸入字元時顯示錯誤並保留原數字；例如特定倍率字型只有 `x` 與數字，不一定有逗號／小數點。字型原始 advance／kerning 保留，Spacing 可另外微調。
+- slot 模式使用原 Spine slot container，繼承 draw order、裁切、slot alpha 與 attachment 顯示狀態；**Hide slot placeholder** 只隱藏該 slot 的原圖，移除數字後會還原。空 attachment／透明／inactive 的 slot 不會顯示數字。bone 模式以完整 bone matrix 跟隨，顯示在 slots 上方。原始骨架與字型檔不會被修改。
+- 數字、字型 `.fnt` 及 page 圖片均納入 Undo／Redo 和專案 ZIP；同一字型資源可共用，移除最後一個使用者時釋放。字型／掛點錯誤的專案不會替換目前舞台。遊戲素材由使用者從本機匯入，不會打包到 Viewer 網站。
+- **sHG0006 參考**：`bmpfont02.fnt + .png` 對應 `track_mul`／`track_mul_collect`，中央倍率 Font size `188`、Max width `270`（collect `360`）；`bmpfont09` 對應 `track_bonus_mul*`，Font size `119`；`bmpfont10` 對應 `track_random_mul1–8`，Font size `80`。數值由 Viewer 手動輸入；遊戲執行時的計獎／跳字邏輯不會自動執行。預覽 combo 可用 Track 0 `main`、Track 1 `combo_in → combo_loop`，依動畫姿勢按 Fit。
+
 ## 音樂標記、循環與舞台工具
 
 - **Add marker (M)** 在播放頭加入標記；可改名稱與秒數、Go 定位、× 移除。BPM 與 Beat offset 手動設定，沒有自動節拍偵測。
@@ -98,7 +108,7 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 Vite build 附 source map 供除錯；若不想發布原始碼，將 `vite.config.ts` 的 `build.sourcemap` 設成 `false` 後重新打包。pixi-spine 含多個 runtime，正式 JS bundle 較大屬預期；不任意裁掉 runtime 以維持既有相容範圍。
 
-左側 **Assets／Stage／Bone images／Music／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
+左側 **Assets／Stage／Bone images／Bone numbers／Music／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
 
 ## 多骨架舞台（本機版）
 

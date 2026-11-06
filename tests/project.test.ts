@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeProject, decodeProject, type ProjectSnapshot } from '../src/project';
 import { zipSync, strToU8, strFromU8, unzipSync } from 'fflate';
+import type { BoneNumberState } from '../src/bone-number-state';
 const skeleton = new File(['{}'], 'hero.json');
 const atlas = new File(['page.webp'], 'hero.atlas');
 const source = {
@@ -156,6 +157,58 @@ test('bone image files round-trip with transforms and deduplicate across actors'
   );
   manifest.actors[0].state.boneImages[0].scale = 1;
   manifest.actors[0].state.boneImages[0].file.id = 'assets/missing';
+  assert.throws(
+    () => decodeProject(zipSync({ ...files, 'project.json': strToU8(JSON.stringify(manifest)) })),
+    /Missing project asset/,
+  );
+});
+
+test('number content, slot mounts and bitmap-font files survive project round trips', async () => {
+  const font = {
+    file: new File(['<font/>'], 'digits.fnt'),
+    pages: [new File(['page'], 'digits.png')],
+  };
+  const number: BoneNumberState = {
+    mount: 'slot',
+    target: 'track_mul',
+    text: 'x100',
+    fontSize: 188,
+    color: '#ffffff',
+    letterSpacing: -2,
+    maxWidth: 270,
+    x: 4,
+    y: 6,
+    scale: 0.5,
+    rotation: 12,
+    hidePlaceholder: true,
+    font,
+  };
+  const snapshot: ProjectSnapshot = {
+    actors: [
+      { source, state: { ...state, boneNumbers: [number] } },
+      { source, state: { ...state, boneNumbers: [{ ...number, text: 'x20' }] } },
+    ],
+    selected: 1,
+    music: { time: 0, rate: 1, loop: false, volume: 0.8, muted: false },
+  };
+  const files = unzipSync(await encodeProject(snapshot));
+  assert.equal(Object.keys(files).length, 5);
+  const restored = decodeProject(zipSync(files));
+  const first = restored.actors[0].state.boneNumbers![0],
+    second = restored.actors[1].state.boneNumbers![0];
+  assert.deepEqual({ ...first, font: null }, { ...number, font: null });
+  assert.equal(first.font!.file, second.font!.file);
+  assert.equal(first.font!.pages[0], second.font!.pages[0]);
+  assert.equal(await first.font!.pages[0].text(), 'page');
+  assert.equal(second.text, 'x20');
+  const manifest = JSON.parse(strFromU8(files['project.json']));
+  manifest.actors[0].state.boneNumbers[0].fontSize = 0;
+  assert.throws(
+    () => decodeProject(zipSync({ ...files, 'project.json': strToU8(JSON.stringify(manifest)) })),
+    /number style/,
+  );
+  manifest.actors[0].state.boneNumbers[0].fontSize = 188;
+  manifest.actors[0].state.boneNumbers[0].font.pages[0].id = 'assets/missing';
   assert.throws(
     () => decodeProject(zipSync({ ...files, 'project.json': strToU8(JSON.stringify(manifest)) })),
     /Missing project asset/,
