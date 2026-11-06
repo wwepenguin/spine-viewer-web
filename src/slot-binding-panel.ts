@@ -3,13 +3,15 @@ import { prepareBoneImage } from './bone-images';
 import { prepareBoneNumber } from './bone-numbers';
 import type { BoneNumberState } from './bone-number-state';
 import { filterNumberGlyphs } from './number-font';
+import { AttachmentType } from 'pixi-spine';
 
 /** One editor for both attachment types; selecting a slot never moves an existing binding. */
 export function installSlotBindingPanel(viewer: SkeletonViewer) {
   const panel = document.createElement('div');
   panel.className = 'slot-binding-panel';
   panel.innerHTML = `<h3>Slot content</h3>
-    <label for="bindingTarget">Target slot / bone</label><select id="bindingTarget"></select>
+    <label for="bindingTarget">Target slot / bone</label><select id="bindingTarget" aria-describedby="bindingTargetWarning"></select>
+    <p id="bindingTargetWarning" class="file-note slot-binding-warning" role="status" aria-live="polite" hidden></p>
     <label for="bindingType">Content type</label><select id="bindingType"><option value="none">None (original content)</option><option value="image">Image</option><option value="number">Number</option></select>
     <div id="bindingImageFields"><label for="bindingImage">Library image</label><select id="bindingImage"></select></div>
     <div id="bindingNumberFields"><label for="bindingFont">Number font</label><select id="bindingFont"></select>
@@ -105,6 +107,17 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
     if (font.selectedIndex < 0) font.value = '-1';
   }
   let lastLibrary = viewer.mediaLibrary;
+  function syncTargetWarning() {
+    const [mount, name] = destination();
+    const slot = mount === 'slot' ? viewer.active?.model.skeleton.findSlot(name) : null;
+    const message =
+      slot?.getAttachment()?.type === AttachmentType.BoundingBox
+        ? `Current attachment: Bounding box. This slot is not rendered, so attached images and numbers are hidden. Choose a Region / Mesh slot, or Bone · ${slot.bone.data.name} to follow the same bone.`
+        : '';
+    const warning = el('bindingTargetWarning');
+    if (warning.textContent !== message) warning.textContent = message;
+    warning.hidden = !message;
+  }
   function sync() {
     if (actor !== viewer.active) {
       cancelPending();
@@ -132,6 +145,7 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
       }
     }
     target.value = targetValue;
+    syncTargetWarning();
     if (lastLibrary !== viewer.mediaLibrary || force) {
       if (lastLibrary !== viewer.mediaLibrary) cancelPending();
       lastLibrary = viewer.mediaLibrary;
@@ -367,6 +381,11 @@ export function installSlotBindingPanel(viewer: SkeletonViewer) {
   viewer.onChange = () => {
     previous?.();
     sync();
+  };
+  const previousTick = viewer.onTick;
+  viewer.onTick = () => {
+    previousTick?.();
+    syncTargetWarning();
   };
   sync();
 }

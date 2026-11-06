@@ -1520,6 +1520,12 @@ kbd {
   font-size: 13px;
   margin: 10px 0;
 }
+.slot-binding-warning {
+  color: #f1cf86;
+  background: #b98b2217;
+  border-left: 2px solid #d4ac56;
+  padding: 8px 10px;
+}
 .media-preview {
   display: flex;
   align-items: center;
