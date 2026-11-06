@@ -5,6 +5,7 @@ import type { AnimationClip, TrackSettings } from './animation-tracks';
 import { MAX_CLIP_DURATION } from './animation-tracks';
 import { boneImageSettings, MAX_BONE_IMAGES, type BoneImageState } from './bone-image-state';
 import { boneNumberSettings, MAX_BONE_NUMBERS, type BoneNumberState } from './bone-number-state';
+import { MAX_MEDIA_ASSETS, type MediaLibrary } from './media-library';
 
 export interface ActorState {
   boneNumbers?: BoneNumberState[];
@@ -29,6 +30,7 @@ export interface ActorState {
   settings: TrackSettings[];
 }
 export interface ProjectSnapshot {
+  mediaLibrary?: MediaLibrary;
   actors: { source: SkeletonAsset['source']; state: ActorState }[];
   selected: number;
   audio?: File;
@@ -46,6 +48,17 @@ export interface ProjectSnapshot {
 }
 export function captureProject(viewer: SkeletonViewer): ProjectSnapshot {
   return {
+    ...(viewer.mediaLibrary.images.length || viewer.mediaLibrary.fonts.length
+      ? {
+          mediaLibrary: {
+            images: [...viewer.mediaLibrary.images],
+            fonts: viewer.mediaLibrary.fonts.map((font) => ({
+              file: font.file,
+              pages: [...font.pages],
+            })),
+          },
+        }
+      : {}),
     actors: viewer.items.map((i) => ({
       source: { ...i.asset.source, entries: [...i.asset.source.entries] },
       state: {
@@ -221,8 +234,24 @@ export async function encodeProject(snapshot: ProjectSnapshot) {
       source: { ...actor.source, entries },
     });
   }
+  const library = snapshot.mediaLibrary;
+  if (library && library.images.length + library.fonts.length > MAX_MEDIA_ASSETS)
+    throw Error('Too many media assets.');
+  const mediaLibrary = library
+    ? {
+        images: await Promise.all(library.images.map(put)),
+        fonts: await Promise.all(
+          library.fonts.map(async (font) => {
+            if (!font.pages.length || font.pages.length > 16)
+              throw Error('Invalid number font pages.');
+            return { file: await put(font.file), pages: await Promise.all(font.pages.map(put)) };
+          }),
+        ),
+      }
+    : undefined;
   const manifest = {
     version: 1,
+    mediaLibrary,
     actors,
     selected: snapshot.selected,
     music: snapshot.music,
@@ -324,11 +353,32 @@ export function decodeProject(bytes: Uint8Array): ProjectSnapshot {
       };
     },
   );
+  const library = manifest.mediaLibrary;
+  let mediaLibrary: MediaLibrary | undefined;
+  if (library !== undefined) {
+    if (
+      !library ||
+      !Array.isArray(library.images) ||
+      !Array.isArray(library.fonts) ||
+      library.images.length + library.fonts.length > MAX_MEDIA_ASSETS
+    )
+      throw Error('Invalid media library.');
+    type Descriptor = Parameters<typeof file>[0];
+    mediaLibrary = {
+      images: library.images.map(file),
+      fonts: library.fonts.map((font: { file: Descriptor; pages: Descriptor[] }) => {
+        if (!font || !Array.isArray(font.pages) || !font.pages.length || font.pages.length > 16)
+          throw Error('Invalid number font pages.');
+        return { file: file(font.file), pages: font.pages.map(file) };
+      }),
+    };
+  }
   const m = manifest.music;
   if (m.markers !== undefined && (!Array.isArray(m.markers) || m.markers.length > 1000))
     throw Error('Invalid markers.');
   return {
     actors,
+    ...(mediaLibrary ? { mediaLibrary } : {}),
     selected: Math.floor(finite(manifest.selected, -1, Math.max(0, actors.length - 1))),
     audio: manifest.audio ? file(manifest.audio) : undefined,
     music: {

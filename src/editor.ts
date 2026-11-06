@@ -6,8 +6,7 @@ import { EditHistory } from './history';
 import { installMusicTools } from './music-tools';
 import { installStageTools } from './stage-tools';
 import { installPreferences } from './preferences';
-import { installBoneImagePanel } from './bone-image-panel';
-import { installBoneNumberPanel } from './bone-number-panel';
+import { installMediaPanel } from './media-panel';
 import type { ProjectSnapshot } from './project';
 
 export function installEditor(
@@ -90,6 +89,15 @@ export function installEditor(
         },
       })),
       audio: fileId(s.audio),
+      mediaLibrary: s.mediaLibrary
+        ? {
+            images: s.mediaLibrary.images.map(fileId),
+            fonts: s.mediaLibrary.fonts.map((font) => ({
+              file: fileId(font.file),
+              pages: font.pages.map(fileId),
+            })),
+          }
+        : undefined,
       music: { ...s.music, time: 0 },
     }),
   );
@@ -167,7 +175,6 @@ export function installEditor(
   record();
   installMusicTools(viewer, report);
   installStageTools(viewer);
-  installBoneImagePanel(viewer, report);
-  installBoneNumberPanel(viewer, report);
+  installMediaPanel(viewer, report);
   installPreferences(viewer, timeline);
 }

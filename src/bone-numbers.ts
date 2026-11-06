@@ -2,6 +2,7 @@ import { PIXI, type RuntimeSpine } from './runtime';
 import { boneImageVertices } from './bone-image-state';
 import { boneNumberSettings, MAX_BONE_NUMBERS, type BoneNumberState } from './bone-number-state';
 import { acquireNumberFont, checkNumberGlyphs, type NumberFontResource } from './number-font';
+import { syncSlotPlaceholders, syncSlotTransform } from './slot-overlays';
 
 export interface PreparedBoneNumber {
   state: BoneNumberState;
@@ -35,7 +36,6 @@ type NumberEntry = PreparedBoneNumber & {
 };
 export class BoneNumberLayer {
   readonly numbers: NumberEntry[] = [];
-  private hidden = new Map<PIXI.DisplayObject, boolean>();
   constructor(private readonly model: RuntimeSpine) {}
   private mount(state: BoneNumberState) {
     if (state.mount === 'bone') {
@@ -147,7 +147,7 @@ export class BoneNumberLayer {
     );
   }
   sync() {
-    const hidden = new Set<PIXI.DisplayObject>();
+    const hidden = new Set<string>();
     for (const entry of this.numbers) {
       const bone =
         entry.state.mount === 'bone'
@@ -155,27 +155,12 @@ export class BoneNumberLayer {
           : this.model.skeleton.findSlot(entry.state.target)?.bone;
       entry.root.visible = !!bone && bone.active !== false;
       if (bone && entry.state.mount === 'bone') entry.root.transform.setFromMatrix(bone.matrix);
-      else entry.root.transform.setFromMatrix(PIXI.Matrix.IDENTITY);
-      // Animation or skin changes may append a new sprite inside the same slot.
-      if (entry.state.mount === 'slot' && entry.root.parent) {
-        const parent = entry.root.parent;
-        parent.setChildIndex(entry.root, parent.children.length - 1);
-      }
+      else syncSlotTransform(this.model, entry.root, entry.state.target);
       if (entry.state.mount === 'slot' && entry.state.hidePlaceholder) {
-        const slot = this.model.skeleton.findSlot(entry.state.target);
-        for (const display of [slot?.currentSprite, slot?.currentMesh])
-          if (display) hidden.add(display);
+        hidden.add(entry.state.target);
       }
     }
-    for (const [display, renderable] of this.hidden)
-      if (!hidden.has(display)) {
-        display.renderable = renderable;
-        this.hidden.delete(display);
-      }
-    for (const display of hidden) {
-      if (!this.hidden.has(display)) this.hidden.set(display, display.renderable);
-      display.renderable = false;
-    }
+    syncSlotPlaceholders(this.model, this, hidden);
   }
   vertices() {
     return this.numbers.flatMap((entry) => {

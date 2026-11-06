@@ -35,6 +35,56 @@ const state = {
   sequences: Array.from({ length: 6 }, () => [{ name: 'walk', mixIn: 0 }]),
   settings: Array.from({ length: 6 }, () => ({ alpha: 1, additive: false, loop: true, speed: 1 })),
 };
+test('unattached media survives empty-stage projects and shares files with slot bindings', async () => {
+  const image = new File(['image'], 'badge.webp'),
+    font = new File(['font'], 'digits.fnt'),
+    page = new File(['page'], 'digits.png');
+  const snapshot: ProjectSnapshot = {
+    actors: [],
+    selected: -1,
+    music: { time: 0, rate: 1, loop: false, volume: 1, muted: false },
+    mediaLibrary: { images: [image], fonts: [{ file: font, pages: [page] }] },
+  };
+  const empty = decodeProject(await encodeProject(snapshot));
+  assert.equal(await empty.mediaLibrary!.images[0].text(), 'image');
+  assert.equal(empty.mediaLibrary!.fonts[0].pages[0].name, 'digits.png');
+  snapshot.actors = [
+    {
+      source,
+      state: {
+        ...state,
+        boneImages: [
+          {
+            file: image,
+            bone: 'head',
+            slot: 'head-slot',
+            hidePlaceholder: true,
+            x: 0,
+            y: 0,
+            scale: 1,
+            rotation: 0,
+          },
+        ],
+      },
+    },
+  ];
+  const bytes = await encodeProject(snapshot),
+    restored = decodeProject(bytes);
+  assert.equal(restored.mediaLibrary!.images[0], restored.actors[0].state.boneImages![0].file);
+  assert.equal(restored.actors[0].state.boneImages![0].slot, 'head-slot');
+  const files = unzipSync(bytes),
+    manifest = JSON.parse(strFromU8(files['project.json']));
+  manifest.mediaLibrary.images[0].id = 'assets/missing';
+  assert.throws(
+    () => decodeProject(zipSync({ ...files, 'project.json': strToU8(JSON.stringify(manifest)) })),
+    /Missing project asset/,
+  );
+  manifest.mediaLibrary = { images: Array(257).fill({}), fonts: [] };
+  assert.throws(
+    () => decodeProject(zipSync({ ...files, 'project.json': strToU8(JSON.stringify(manifest)) })),
+    /Invalid media library/,
+  );
+});
 test('portable archive round-trips nested sources, independent actors and audio with deduplication', async () => {
   const snapshot: ProjectSnapshot = {
     actors: [

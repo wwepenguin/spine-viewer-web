@@ -1502,7 +1502,7 @@ kbd {
   min-width: 0;
   padding: 5px 8px;
 }
-.bone-number-panel input[type='text'] {
+.slot-binding-panel input[type='text'] {
   width: 100%;
   min-width: 0;
   padding: 6px 8px;
@@ -1510,6 +1510,37 @@ kbd {
   border-radius: 6px;
   color: var(--text);
   background: #222c3b;
+}
+.slot-binding-panel {
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 4px;
+}
+.slot-binding-panel h3 {
+  font-size: 13px;
+  margin: 10px 0;
+}
+.slot-binding-panel > button {
+  width: 100%;
+  margin-top: 10px;
+}
+.media-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  min-height: 36px;
+}
+.media-preview img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  background: #222c3b;
+  border-radius: 4px;
+}
+.slot-binding-panel [hidden],
+.media-preview [hidden] {
+  display: none;
 }
 .scene-actions button {
   flex: 1;

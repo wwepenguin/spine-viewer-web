@@ -5,6 +5,8 @@ import type { SkeletonAsset, AssetCatalog } from './types';
 import type { ActorState, ProjectSnapshot } from './project';
 import { prepareBoneImage, type PreparedBoneImage } from './bone-images';
 import { prepareBoneNumber, type PreparedBoneNumber } from './bone-numbers';
+import { collectMediaLibrary } from './media-library';
+import { acquireNumberFont } from './number-font';
 
 function applyActor(item: SceneItem, state: ActorState) {
   if (state.selectedSlot && !item.model.skeleton.findSlot(state.selectedSlot))
@@ -35,7 +37,14 @@ export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSn
   const images: PreparedBoneImage[][] = [];
   const numbers: PreparedBoneNumber[][] = [];
   const music = new MusicTransport();
+  const library = collectMediaLibrary(snapshot.mediaLibrary, snapshot.actors);
+  const mediaLeases: { release(): void }[] = [];
   try {
+    for (const file of library.images)
+      mediaLeases.push(
+        await prepareBoneImage({ file, bone: 'library', x: 0, y: 0, scale: 1, rotation: 0 }),
+      );
+    for (const font of library.fonts) mediaLeases.push(await acquireNumberFont(font));
     if (snapshot.audio) await music.load(snapshot.audio);
     music.setRate(snapshot.music.rate);
     music.loop = snapshot.music.loop;
@@ -64,6 +73,7 @@ export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSn
         preparedNumbers.push(await prepareBoneNumber(number));
     }
   } catch (error) {
+    mediaLeases.forEach((lease) => lease.release());
     assets.forEach((a) => a.asset.dispose());
     images.flat().forEach((image) => image.release());
     numbers.flat().forEach((number) => number.release());
@@ -72,7 +82,9 @@ export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSn
   }
   // Prepare every model before setScene disposes the old scene.
   const oldMusic = viewer.music;
+  const oldLibrary = viewer.mediaLibrary;
   viewer.music = music;
+  viewer.mediaLibrary = library;
   try {
     viewer.setScene(assets, (items) => {
       items.forEach((i, n) => applyActor(i, snapshot.actors[n].state));
@@ -84,13 +96,16 @@ export async function restoreProject(viewer: SkeletonViewer, snapshot: ProjectSn
       );
     });
   } catch (error) {
+    mediaLeases.forEach((lease) => lease.release());
     viewer.music = oldMusic;
+    viewer.mediaLibrary = oldLibrary;
     images.flat().forEach((image) => image.release());
     numbers.flat().forEach((number) => number.release());
     music.dispose();
     throw error;
   }
   oldMusic.dispose();
+  mediaLeases.forEach((lease) => lease.release());
   music.onError = oldMusic.onError;
   music.onChange = () => {
     if (music.loaded) viewer.syncMusic(true);

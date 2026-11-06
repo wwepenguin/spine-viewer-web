@@ -26,44 +26,46 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 ## 程式結構
 
-| 檔案                       | 修改位置                                          |
-| -------------------------- | ------------------------------------------------- |
-| `index.html`               | 面板與控制項的 HTML                               |
-| `src/main.ts`              | 介面事件、清單、播放控制及初始化                  |
-| `src/animation-tracks.ts`  | 多軌設定、混合、同步定位及姿勢重建                |
-| `src/project.ts`           | ZIP 封裝、格式驗證與場景設定快照                  |
-| `src/project-restore.ts`   | 驗證新素材後替換舞台與音訊                        |
-| `src/editor.ts`            | 專案操作與復原交易                                |
-| `src/history.ts`           | 有上限的 Undo／Redo 狀態堆疊                      |
-| `src/music-tools.ts`       | Marker、BPM 與 A–B 循環介面                       |
-| `src/stage-tools.ts`       | 角色變形、顯示、鎖定與圖層介面                    |
-| `src/bone-image-panel.ts`  | 骨骼圖片上傳、選取與 Offset／Scale／Rotation 介面 |
-| `src/bone-images.ts`       | 圖片貼圖共用、骨骼矩陣跟隨與資源釋放              |
-| `src/bone-image-state.ts`  | 圖片設定驗證與幾何座標                            |
-| `src/bone-number-panel.ts` | 數字／倍率、掛點與字型匯入介面                    |
-| `src/bone-numbers.ts`      | 數字綁定骨骼／slot、置中與佔位圖還原              |
-| `src/number-font.ts`       | BMFont 字型載入、缺字檢查與資源共用               |
-| `src/bone-number-state.ts` | 數字設定與 BMFont 頁面驗證                        |
-| `src/transform.ts`         | Slot 幾何的角色座標變換                           |
-| `src/resource-pool.ts`     | 非同步資源共用與參考計數                          |
-| `src/preferences.ts`       | 本機介面偏好及面板尺寸                            |
-| `src/snapping.ts`          | 時間吸附                                          |
-| `src/music.ts`             | 本機音樂解碼、音訊時鐘、波形與舞台時間換算        |
-| `src/frame-step.ts`        | 逐幀定位與幀邊界計算                              |
-| `src/timeline-viewport.ts` | 純函式狀態：時間軸連續縮放、平移與指針定位        |
-| `src/sequence-editor.ts`   | 同軌序列編輯、排序與 Mix in 控制                  |
-| `src/track-panel.ts`       | 下方時間軸、動畫區塊、拖曳與鍵盤定位              |
-| `src/viewer.ts`            | Pixi 場景、動畫、Slot 幾何與標示                  |
-| `src/catalog.ts`           | 純函式：檔案分類、atlas 配對、貼圖路徑            |
-| `src/assets.ts`            | File API、圖片解碼、骨架 parser、範例載入         |
-| `src/performance.ts`       | FPS、CPU、實際 WebGL Draw Calls、Mem              |
-| `src/runtime.ts`           | 舊版 pixi-spine 跨 runtime 型別相容層             |
-| `src/types.ts`             | 共用資料模型與公開介面                            |
-| `src/dom.ts`               | HTML ID 對應的元素型別；增加控制項時同步更新      |
-| `src/webmcp.ts`            | 選用的 WebMCP 工具，不影響一般瀏覽器              |
-| `src/styles.css`           | 樣式、響應式介面                                  |
-| `public/sample/`           | 官方 Spineboy 3.8 範例，含 JSON / SKEL / WebP     |
-| `tests/`                   | 使用 Node test runner 的 TypeScript 測試          |
+| 檔案                        | 修改位置                                      |
+| --------------------------- | --------------------------------------------- |
+| `index.html`                | 面板與控制項的 HTML                           |
+| `src/main.ts`               | 介面事件、清單、播放控制及初始化              |
+| `src/animation-tracks.ts`   | 多軌設定、混合、同步定位及姿勢重建            |
+| `src/project.ts`            | ZIP 封裝、格式驗證與場景設定快照              |
+| `src/project-restore.ts`    | 驗證新素材後替換舞台與音訊                    |
+| `src/editor.ts`             | 專案操作與復原交易                            |
+| `src/history.ts`            | 有上限的 Undo／Redo 狀態堆疊                  |
+| `src/music-tools.ts`        | Marker、BPM 與 A–B 循環介面                   |
+| `src/stage-tools.ts`        | 角色變形、顯示、鎖定與圖層介面                |
+| `src/media-panel.ts`        | 共用圖片／字型素材庫、批次匯入與預覽          |
+| `src/media-library.ts`      | 字型相對路徑配對與舊專案素材整合              |
+| `src/slot-binding-panel.ts` | Slot 圖片／數字切換與即時調整介面             |
+| `src/bone-images.ts`        | 圖片貼圖共用、骨骼矩陣跟隨與資源釋放          |
+| `src/bone-image-state.ts`   | 圖片設定驗證與幾何座標                        |
+| `src/slot-overlays.ts`      | Slot 座標轉換與跨類型佔位圖還原               |
+| `src/bone-numbers.ts`       | 數字綁定骨骼／slot、置中與佔位圖還原          |
+| `src/number-font.ts`        | BMFont 字型載入、缺字檢查與資源共用           |
+| `src/bone-number-state.ts`  | 數字設定與 BMFont 頁面驗證                    |
+| `src/transform.ts`          | Slot 幾何的角色座標變換                       |
+| `src/resource-pool.ts`      | 非同步資源共用與參考計數                      |
+| `src/preferences.ts`        | 本機介面偏好及面板尺寸                        |
+| `src/snapping.ts`           | 時間吸附                                      |
+| `src/music.ts`              | 本機音樂解碼、音訊時鐘、波形與舞台時間換算    |
+| `src/frame-step.ts`         | 逐幀定位與幀邊界計算                          |
+| `src/timeline-viewport.ts`  | 純函式狀態：時間軸連續縮放、平移與指針定位    |
+| `src/sequence-editor.ts`    | 同軌序列編輯、排序與 Mix in 控制              |
+| `src/track-panel.ts`        | 下方時間軸、動畫區塊、拖曳與鍵盤定位          |
+| `src/viewer.ts`             | Pixi 場景、動畫、Slot 幾何與標示              |
+| `src/catalog.ts`            | 純函式：檔案分類、atlas 配對、貼圖路徑        |
+| `src/assets.ts`             | File API、圖片解碼、骨架 parser、範例載入     |
+| `src/performance.ts`        | FPS、CPU、實際 WebGL Draw Calls、Mem          |
+| `src/runtime.ts`            | 舊版 pixi-spine 跨 runtime 型別相容層         |
+| `src/types.ts`              | 共用資料模型與公開介面                        |
+| `src/dom.ts`                | HTML ID 對應的元素型別；增加控制項時同步更新  |
+| `src/webmcp.ts`             | 選用的 WebMCP 工具，不影響一般瀏覽器          |
+| `src/styles.css`            | 樣式、響應式介面                              |
+| `public/sample/`            | 官方 Spineboy 3.8 範例，含 JSON / SKEL / WebP |
+| `tests/`                    | 使用 Node test runner 的 TypeScript 測試      |
 
 程式使用 ES module import/export，沒有全域 PIXI、SpineIO 或 script 載入順序依賴。`strict: true`，沒有 `@ts-nocheck`；舊套件未完整宣告的成員集中於 `runtime.ts`，以具體介面描述，第三方 `.d.ts` 使用 `skipLibCheck`。
 
@@ -81,13 +83,12 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 - **Snap** 啟用影格、播放頭與 Marker 吸附；勾 **Beats** 加入節拍吸附。拖曳任一動畫區塊會整串移動該 track 的 sequence，保留 Duration／Mix in；**Alt** 暫時略過吸附。每軌起點為角色的局部秒數；有音樂時再加上角色 Start at。此版不提供單一 clip 的任意空隙或入點裁切。
 - **Scene overview** 在同一刻度顯示所有角色與六軌色帶，點角色名稱或色帶回到該角色的軌道編輯。沒有音樂時每個角色保留獨立時鐘。
 - **Stage** 每個角色右側的垃圾桶圖示可直接移除該角色，也可用 **Remove selected** 刪除目前選取。刪除其他角色時保留目前選取；刪除選取角色後自動選取相鄰角色。可刪到空舞台，再從 Assets 加入或用 **Undo／Redo** 還原；素材來源保留，共用貼圖在最後一個使用者移除後才釋放。Stage 列表的 **↑／↓** 只切換角色，不會觸發刪除。
-- **Bone images**：先選 Stage 角色，再選 Target bone，按 **Upload image** 上傳 PNG／WebP／JPG；存在 `track-bone` 時預設選取它，否則可選任何骨骼。每個角色最多 32 張，單檔最多 32 MB／8192 px。圖片中心綁在骨骼原點，可調 Offset X／Y、Scale、Rotation；使用骨骼局部座標（Y 向上），Scale 1 表示每個圖片像素等於一個骨架單位。圖片會繼承骨骼完整矩陣，以及角色移動／旋轉／縮放／Flip；支援播放、逐格、seek、音樂同步與 inactive bones。顯示在原骨架 slots 上方，不受 slot clipping 或 slot alpha 控制，原始骨架檔不會被修改。
-- Image 下拉可選既有綁圖重新指定骨骼／調整設定，或選 **New image** 再新增；垃圾桶移除該圖。每個角色的綁圖各自獨立；Undo／Redo、Save／Open project ZIP 包含原始圖片及綁定設定，舊 ZIP 仍可開啟。解碼或骨骼不存在時載入失敗保留原舞台；移除圖片、角色或替換專案時釋放貼圖，Performance 也會統計這些圖片的貼圖／三角形。
-
-- **Bone numbers**：選擇 Target slot / bone，輸入 **Display text**（例如 `x100`、`12,345.67`），按 **Add number**；數值即時更新。可調 Font size、Color、Spacing、Max width（0 關閉）、Offset、Scale、Rotation。文字依可見字形置中，Max width 超出時等比縮小，不會改動原字型。每個角色最多 64 個數字，支援不同掛點／字型與刪除。
-- 預設使用 Arial；新增數字後按 **Load bitmap font**，同時選取一份 `.fnt` 與其引用的 PNG／WebP／JPG 圖片（支援 XML／文字 BMFont、多頁）。**System font** 切回 Arial。字型缺少輸入字元時顯示錯誤並保留原數字；例如特定倍率字型只有 `x` 與數字，不一定有逗號／小數點。字型原始 advance／kerning 保留，Spacing 可另外微調。
-- slot 模式使用原 Spine slot container，繼承 draw order、裁切、slot alpha 與 attachment 顯示狀態；**Hide slot placeholder** 只隱藏該 slot 的原圖，移除數字後會還原。空 attachment／透明／inactive 的 slot 不會顯示數字。bone 模式以完整 bone matrix 跟隨，顯示在 slots 上方。原始骨架與字型檔不會被修改。
-- 數字、字型 `.fnt` 及 page 圖片均納入 Undo／Redo 和專案 ZIP；同一字型資源可共用，移除最後一個使用者時釋放。字型／掛點錯誤的專案不會替換目前舞台。遊戲素材由使用者從本機匯入，不會打包到 Viewer 網站。
+- **Media library**：按 **Add media** 一次選取多張 PNG／WebP／JPG、數份 `.fnt` 和各自引用的 page 圖片，或按 **Add folder** 匯入整個資料夾。字型支援 XML／文字 BMFont、多頁貼圖，優先依 `.fnt` 所在資料夾的相對路徑配對，避免不同資料夾的同名貼圖混用；未配對、歧義或解碼失敗會取消整批匯入並保留原素材庫。字型 page 圖片不會重複列成一般圖片。此處的字型匯入支援 BMFont `.fnt`，不支援 TTF／OTF。
+- 共用素材庫最多 256 個圖片／字型，可在載入骨架前先匯入；圖片單檔最多 32 MB／8192 px、`.fnt` 最多 2 MB／16 pages。同一素材可用於多個角色及 Slot，不需重複上傳；每個角色最多 32 張綁圖／64 個數字。下拉選擇素材可預覽圖片或查看字型頁數。**Remove asset** 刪除未使用的素材；已掛在舞台的素材需先清除綁定。刪除角色不會移除素材庫。
+- **Slots → Slot content**：點左側 Slot 列表會同步選取並標示掛點，也可用 **Target slot / bone** 選擇。**Content type** 選 **Image** 後挑 Library image，或選 **Number** 後挑 Number font 並輸入 Display text（如 `x100`、`12,345.67`），再按 **Apply content**。同一掛點套用時會替換既有自訂內容；選 **None (original content)** 並按 **Restore original content** 清除綁定、還原原圖。舊專案同掛點多個內容會保留到按 Apply 才合併替換。
+- 圖片與數字共用 Offset X／Y、Scale、Rotation，套用後可即時調整；數字還有 Font size、Color、Spacing、Max width（0 關閉）。字形依可見範圍置中，超出 Max width 等比縮小，保留字型原始 advance／kerning。預設可選 Arial；BMFont 缺少輸入字元時保留原內容並顯示錯誤。比如倍率字型不一定包含逗號或小數點。
+- Slot 圖片／數字使用原 Spine slot container，跟隨動畫、draw order、clipping、slot alpha 與 attachment 顯示狀態。**Hide slot placeholder** 隱藏原圖，切換類型或清除時會正確還原。空 attachment／透明／inactive 的 Slot 不顯示自訂內容。Bone 模式顯示在骨架上方並繼承完整骨骼矩陣。Offset 使用骨骼座標（Y 向上），Scale 1 表示一個圖片像素等於一個骨架單位。
+- Undo／Redo 和 Save／Open project ZIP 包含共用素材庫（含尚未掛上的素材）、字型 pages 和每個掛點設定；共享檔案只存一份。舊專案已綁的圖片／字型會自動轉入素材庫。載入失敗保留目前舞台與素材庫；GPU 貼圖及字型在最後一個使用者移除後釋放，Performance 包含其貼圖／三角形。原始骨架／字型不會被修改，本機遊戲素材不會打包到 Viewer 網站。
 - **sHG0006 參考**：`bmpfont02.fnt + .png` 對應 `track_mul`／`track_mul_collect`，中央倍率 Font size `188`、Max width `270`（collect `360`）；`bmpfont09` 對應 `track_bonus_mul*`，Font size `119`；`bmpfont10` 對應 `track_random_mul1–8`，Font size `80`。數值由 Viewer 手動輸入；遊戲執行時的計獎／跳字邏輯不會自動執行。預覽 combo 可用 Track 0 `main`、Track 1 `combo_in → combo_loop`，依動畫姿勢按 Fit。
 
 ## 音樂標記、循環與舞台工具
@@ -108,7 +109,7 @@ Vite 僅轉譯 TypeScript，因此 build 指令包含獨立的 tsc 檢查，參�
 
 Vite build 附 source map 供除錯；若不想發布原始碼，將 `vite.config.ts` 的 `build.sourcemap` 設成 `false` 後重新打包。pixi-spine 含多個 runtime，正式 JS bundle 較大屬預期；不任意裁掉 runtime 以維持既有相容範圍。
 
-左側 **Assets／Stage／Bone images／Bone numbers／Music／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
+左側 **Assets／Stage／Media library／Music／Skin／Slots／Animations／View** 可點標題或箭頭個別折疊；聚焦標題後也能用 Enter／Space 切換。折疊保留目前的搜尋內容、選取及播放設定，折疊狀態會保存在此瀏覽器；首次使用預設全部展開。
 
 ## 多骨架舞台（本機版）
 

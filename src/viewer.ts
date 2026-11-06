@@ -4,6 +4,7 @@ import { stepFrameTime } from './frame-step';
 import { AnimationTracks, type AnimationClip } from './animation-tracks';
 import { BoneImageLayer } from './bone-images';
 import { BoneNumberLayer } from './bone-numbers';
+import { emptyMediaLibrary } from './media-library';
 import {
   PIXI,
   createSpine,
@@ -36,6 +37,7 @@ export interface SceneItem {
   startAt: number;
 }
 export class SkeletonViewer {
+  mediaLibrary = emptyMediaLibrary();
   private dirty = true;
   renderedFrames = 0;
   get animating() {
@@ -552,7 +554,11 @@ export class SkeletonViewer {
   private itemBounds(item: SceneItem) {
     const vertices: number[] = [];
     for (const slot of item.model.skeleton.slots) {
-      if (item.boneNumbers.isSlotHidden(slot.data.name)) continue;
+      if (
+        item.boneNumbers.isSlotHidden(slot.data.name) ||
+        item.boneImages.isSlotHidden(slot.data.name)
+      )
+        continue;
       const a = slot.getAttachment();
       if (
         a &&

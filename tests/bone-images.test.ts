@@ -4,8 +4,50 @@ import { PIXI, type RuntimeSpine } from '../src/runtime';
 import { BoneImageLayer, prepareBoneImage } from '../src/bone-images';
 import { boneImageSettings, boneImageVertices } from '../src/bone-image-state';
 import { transformVertices } from '../src/transform';
+import { syncSlotPlaceholders } from '../src/slot-overlays';
 
 const settings = { bone: 'track-bone', x: 0, y: 0, scale: 1, rotation: 0 };
+test('slot images follow region and mesh transforms and coordinate placeholder ownership with numbers', () => {
+  const texture = new PIXI.Texture(new PIXI.BaseTexture(null, { width: 20, height: 10 }));
+  const model = new PIXI.Container() as RuntimeSpine,
+    container = new PIXI.Container();
+  const bone = { active: true, matrix: new PIXI.Matrix(1, 0.3, 0.4, -1, 100, 50) };
+  const placeholder = new PIXI.Sprite(texture),
+    slot = { bone, color: { a: 1 }, currentSprite: placeholder, getAttachment: () => ({}) };
+  container.addChild(placeholder);
+  model.addChild(container);
+  model.slotContainers = [container];
+  model.skeleton = {
+    findBone: () => bone,
+    findSlot: () => slot,
+    findSlotIndex: () => 0,
+  } as unknown as RuntimeSpine['skeleton'];
+  const layer = new BoneImageLayer(model),
+    numberOwner = {};
+  layer.attach({
+    state: { ...settings, slot: 'slot', file: new File(['image'], 'badge.png') },
+    texture,
+    release() {},
+  });
+  assert.equal(placeholder.renderable, false);
+  for (const matrix of [new PIXI.Matrix(), bone.matrix]) {
+    container.transform.setFromMatrix(matrix);
+    layer.sync();
+    const center = layer.images[0].sprite.toGlobal(new PIXI.Point(0, 0));
+    assert.ok(Math.abs(center.x - 100) < 1e-6 && Math.abs(center.y - 50) < 1e-6);
+  }
+  syncSlotPlaceholders(model, numberOwner, new Set(['slot']));
+  layer.dispose();
+  assert.equal(placeholder.renderable, false);
+  syncSlotPlaceholders(model, numberOwner, new Set());
+  assert.equal(placeholder.renderable, true);
+  placeholder.renderable = false;
+  syncSlotPlaceholders(model, numberOwner, new Set(['slot']));
+  syncSlotPlaceholders(model, numberOwner, new Set());
+  assert.equal(placeholder.renderable, false);
+  model.destroy({ children: true, texture: false, baseTexture: false });
+  texture.destroy(true);
+});
 test('bone images match rendered Pixi corners through shear, reflection and actor transforms', () => {
   const bone = { active: true, matrix: new PIXI.Matrix(1, 0, 0, -1, 100, 50) };
   const model = new PIXI.Container() as RuntimeSpine;

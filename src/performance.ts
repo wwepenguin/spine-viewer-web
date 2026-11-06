@@ -179,9 +179,10 @@ export class SkeletonPerformance {
       `${items.reduce((n, item) => n + item.model.skeleton.bones.length, 0)} / ${items.reduce((n, item) => n + item.model.skeleton.slots.length, 0)}`;
     let attachments = 0,
       triangles = 0;
-    for (const { model, boneNumbers } of items)
+    for (const { model, boneNumbers, boneImages } of items)
       for (const slot of model.skeleton.slots) {
-        if (boneNumbers.isSlotHidden(slot.data.name)) continue;
+        if (boneNumbers.isSlotHidden(slot.data.name) || boneImages.isSlotHidden(slot.data.name))
+          continue;
         const a = slot.getAttachment();
         if (
           !a ||
@@ -200,7 +201,10 @@ export class SkeletonPerformance {
         }
       }
     for (const item of items) {
-      const count = item.boneImages.images.filter((image) => image.root.visible).length;
+      const count = item.boneImages.images.filter((image) => {
+        const slot = image.state.slot ? item.model.skeleton.findSlot(image.state.slot) : null;
+        return image.root.visible && (!slot || (slot.getAttachment() && slot.color.a > 0));
+      }).length;
       attachments += count;
       triangles += count * 2;
       for (const number of item.boneNumbers.numbers) {

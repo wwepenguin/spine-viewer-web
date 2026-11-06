@@ -1,5 +1,7 @@
 export const MAX_BONE_IMAGES = 32;
 export interface BoneImageSettings {
+  slot?: string;
+  hidePlaceholder?: boolean;
   bone: string;
   x: number;
   y: number;
@@ -12,12 +14,21 @@ export interface BoneImageState extends BoneImageSettings {
 export function boneImageSettings(value: BoneImageSettings): BoneImageSettings {
   if (!value || typeof value.bone !== 'string' || !value.bone || value.bone.length > 10000)
     throw Error('Invalid image bone.');
+  if (
+    value.slot !== undefined &&
+    (typeof value.slot !== 'string' || !value.slot || value.slot.length > 10000)
+  )
+    throw Error('Invalid image slot.');
+  if (value.hidePlaceholder !== undefined && typeof value.hidePlaceholder !== 'boolean')
+    throw Error('Invalid image visibility.');
   const number = (value: number, min: number, max: number) => {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max)
       throw Error('Invalid bone image transform.');
     return value;
   };
   return {
+    ...(value.slot !== undefined ? { slot: value.slot } : {}),
+    ...(value.hidePlaceholder !== undefined ? { hidePlaceholder: value.hidePlaceholder } : {}),
     bone: value.bone,
     x: number(value.x, -1e7, 1e7),
     y: number(value.y, -1e7, 1e7),
