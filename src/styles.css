@@ -1520,10 +1520,6 @@ kbd {
   font-size: 13px;
   margin: 10px 0;
 }
-.slot-binding-panel > button {
-  width: 100%;
-  margin-top: 10px;
-}
 .media-preview {
   display: flex;
   align-items: center;

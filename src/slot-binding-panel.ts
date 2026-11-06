@@ -4,7 +4,7 @@ import { prepareBoneNumber } from './bone-numbers';
 import type { BoneNumberState } from './bone-number-state';
 
 /** One editor for both attachment types; selecting a slot never moves an existing binding. */
-export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: unknown) => void) {
+export function installSlotBindingPanel(viewer: SkeletonViewer) {
   const panel = document.createElement('div');
   panel.className = 'slot-binding-panel';
   panel.innerHTML = `<h3>Slot content</h3>
@@ -26,8 +26,8 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
       <label>Scale<input id="bindingScale" type="number" min="0.001" max="1000" step="any" value="1"></label>
       <label>Rotation °<input id="bindingRotation" type="number" min="-36000" max="36000" step="any" value="0"></label>
     </div><label class="check-label"><input id="bindingHide" type="checkbox" checked>Hide slot placeholder</label></div>
-    <button id="applyBinding">Apply content</button><p class="file-note" id="bindingHint"></p>
-    <p class="file-note">Choose a slot above, then Image, Number or None. Assets come from Media library. Slot content follows animation, draw order, clipping and alpha. Offsets use bone coordinates (Y up).</p>`;
+    <p class="file-note" id="bindingHint" role="status" aria-live="polite"></p>
+    <p class="file-note">Choose a slot above, then Image, Number or None. Changes apply immediately. Assets come from Media library. Slot content follows animation, draw order, clipping and alpha. Offsets use bone coordinates (Y up).</p>`;
   document.querySelector('#slotsContent')!.append(panel);
   const el = <T extends HTMLElement>(id: string) => panel.querySelector<T>(`#${id}`)!;
   const target = el<HTMLSelectElement>('bindingTarget'),
@@ -36,8 +36,7 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
     font = el<HTMLSelectElement>('bindingFont'),
     text = el<HTMLInputElement>('bindingText'),
     color = el<HTMLInputElement>('bindingColor'),
-    hide = el<HTMLInputElement>('bindingHide'),
-    apply = el<HTMLButtonElement>('applyBinding');
+    hide = el<HTMLInputElement>('bindingHide');
   const fields = [
     ['bindingSize', 'fontSize', 64],
     ['bindingSpacing', 'letterSpacing', 0],
@@ -51,8 +50,15 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
     targetValue = '',
     lastSlot: string | null | undefined,
     lastBinding: object | undefined,
-    busy = false,
+    loading = false,
+    editRevision = 0,
+    editError = '',
     force = true;
+  function cancelPending() {
+    editRevision++;
+    loading = false;
+    editError = '';
+  }
   function destination() {
     return targetValue
       ? (JSON.parse(targetValue) as ['slot' | 'bone', string])
@@ -98,6 +104,7 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
   let lastLibrary = viewer.mediaLibrary;
   function sync() {
     if (actor !== viewer.active) {
+      cancelPending();
       actor = viewer.active;
       lastSlot = undefined;
       force = true;
@@ -116,12 +123,14 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
     if (lastSlot !== actor?.selectedSlot) {
       lastSlot = actor?.selectedSlot;
       if (lastSlot) {
+        cancelPending();
         targetValue = JSON.stringify(['slot', lastSlot]);
         force = true;
       }
     }
     target.value = targetValue;
     if (lastLibrary !== viewer.mediaLibrary || force) {
+      if (lastLibrary !== viewer.mediaLibrary) cancelPending();
       lastLibrary = viewer.mediaLibrary;
       options();
       force = true;
@@ -129,6 +138,7 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
     const picture = matchingImages()[0],
       number = matchingNumbers()[0],
       binding = number ?? picture;
+    if (lastBinding !== binding?.state && !force) cancelPending();
     if (force || lastBinding !== binding?.state) {
       type.value = number ? 'number' : picture ? 'image' : 'none';
       image.value = String(viewer.mediaLibrary.images.indexOf(picture?.state.file as File));
@@ -157,30 +167,26 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
     for (const control of panel.querySelectorAll<
       HTMLInputElement | HTMLSelectElement | HTMLButtonElement
     >('input,select,button'))
-      control.disabled = busy || !actor;
+      control.disabled = !actor;
     hide.disabled ||= destination()[0] !== 'slot';
-    apply.disabled ||=
-      !destination()[1] ||
-      (type.value === 'image' && !viewer.mediaLibrary.images[Number(image.value)]);
-    apply.textContent = busy
-      ? 'Loading…'
-      : type.value === 'none'
-        ? 'Restore original content'
-        : 'Apply content';
     const count = matchingImages().length + matchingNumbers().length;
-    el('bindingHint').textContent = !actor
-      ? 'Select a skeleton on the stage first.'
-      : count > 1
-        ? `${count} existing bindings here. Apply replaces them with one content item.`
-        : binding
-          ? `Attached: ${number ? number.state.text : picture!.state.file.name}`
-          : 'No custom content at this target.';
+    el('bindingHint').textContent =
+      editError ||
+      (loading ? 'Loading content…' : '') ||
+      (!actor
+        ? 'Select a skeleton on the stage first.'
+        : count > 1
+          ? `${count} existing bindings here. Editing replaces them with one content item.`
+          : binding
+            ? `Attached: ${number ? number.state.text : picture!.state.file.name}`
+            : 'No custom content at this target.');
   }
   const changed = () => {
     viewer.drawHighlight();
     viewer.onChange?.();
   };
   target.onchange = () => {
+    cancelPending();
     targetValue = target.value;
     force = true;
     const [mount, name] = destination();
@@ -190,7 +196,11 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
     }
     sync();
   };
-  type.onchange = sync;
+  type.onchange = () => {
+    sync();
+    void applyContent();
+  };
+  image.onchange = font.onchange = () => void applyContent();
   function readState(): BoneNumberState {
     for (const input of panel.querySelectorAll<HTMLInputElement>('input:not([type=checkbox])')) {
       if (
@@ -213,58 +223,76 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
       ),
     } as BoneNumberState;
   }
-  // Transform and number edits preview immediately once the selected content has been applied.
-  function liveEdit() {
-    if (busy || !actor) return;
+  for (const input of panel.querySelectorAll<HTMLInputElement>('input')) {
+    input.oninput = () => void applyContent();
+  }
+  async function applyContent() {
+    const item = actor,
+      library = viewer.mediaLibrary,
+      selectedTarget = targetValue,
+      kind = type.value,
+      selectedImage = library.images[Number(image.value)],
+      revision = ++editRevision;
+    editError = '';
+    loading = false;
+    if (!item || !destination()[1]) return;
+    const oldImages = matchingImages(),
+      oldNumbers = matchingNumbers();
+    const current = () =>
+      revision === editRevision &&
+      viewer.active === item &&
+      viewer.items.includes(item) &&
+      viewer.mediaLibrary === library &&
+      targetValue === selectedTarget;
+    const removeOld = (keep?: object) => {
+      for (const entry of oldImages) {
+        const index = item.boneImages.images.indexOf(entry);
+        if (index >= 0 && entry !== keep) item.boneImages.remove(index);
+      }
+      for (const entry of oldNumbers) {
+        const index = item.boneNumbers.numbers.indexOf(entry);
+        if (index >= 0 && entry !== keep) item.boneNumbers.remove(index);
+      }
+    };
+    let prepared:
+      | Awaited<ReturnType<typeof prepareBoneImage>>
+      | Awaited<ReturnType<typeof prepareBoneNumber>>
+      | undefined;
     try {
-      const state = readState(),
-        picture = matchingImages()[0],
-        number = matchingNumbers()[0];
-      if (type.value === 'number' && number && number.state.font?.file === state.font?.file) {
-        actor.boneNumbers.update(actor.boneNumbers.numbers.indexOf(number), state);
+      const state = readState();
+      if (kind === 'none') {
+        removeOld();
+        force = true;
         changed();
-      } else if (
-        type.value === 'image' &&
-        picture &&
-        picture.state.file === viewer.mediaLibrary.images[Number(image.value)]
+        return;
+      }
+      if (
+        kind === 'number' &&
+        oldNumbers[0] &&
+        oldNumbers[0].state.font?.file === state.font?.file
       ) {
+        item.boneNumbers.update(item.boneNumbers.numbers.indexOf(oldNumbers[0]), state);
+        removeOld(oldNumbers[0]);
+        changed();
+        return;
+      }
+      if (kind === 'image' && oldImages[0] && oldImages[0].state.file === selectedImage) {
         const { x, y, scale, rotation, hidePlaceholder } = state;
-        actor.boneImages.update(actor.boneImages.images.indexOf(picture), {
+        item.boneImages.update(item.boneImages.images.indexOf(oldImages[0]), {
           x,
           y,
           scale,
           rotation,
           hidePlaceholder,
         });
+        removeOld(oldImages[0]);
         changed();
+        return;
       }
-    } catch (error) {
-      report(error);
-    }
-  }
-  for (const input of panel.querySelectorAll<HTMLInputElement>('input')) {
-    input.oninput = () => {
-      if (input.value && input.validity.valid) liveEdit();
-    };
-  }
-  apply.onclick = async () => {
-    const item = actor,
-      library = viewer.mediaLibrary,
-      selectedTarget = targetValue,
-      kind = type.value;
-    if (!item || busy) return;
-    const oldImages = matchingImages(),
-      oldNumbers = matchingNumbers();
-    let prepared:
-      | Awaited<ReturnType<typeof prepareBoneImage>>
-      | Awaited<ReturnType<typeof prepareBoneNumber>>
-      | undefined;
-    busy = true;
-    try {
-      const state = readState();
+      loading = true;
       sync();
       if (kind === 'image') {
-        const file = library.images[Number(image.value)];
+        const file = selectedImage;
         if (!file) throw Error('Import and choose a library image first.');
         const bone =
           state.mount === 'slot'
@@ -281,11 +309,7 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
           hidePlaceholder: state.hidePlaceholder,
         });
       } else if (kind === 'number') prepared = await prepareBoneNumber(state);
-      if (
-        !viewer.items.includes(item) ||
-        viewer.mediaLibrary !== library ||
-        targetValue !== selectedTarget
-      ) {
+      if (!current()) {
         prepared?.release();
         prepared = undefined;
         return;
@@ -302,24 +326,19 @@ export function installSlotBindingPanel(viewer: SkeletonViewer, report: (error: 
         else item.boneNumbers.attach(numberResource);
       }
       prepared = undefined; // Layer now owns the resource.
-      for (const entry of oldImages) {
-        const index = item.boneImages.images.indexOf(entry);
-        if (index >= 0) item.boneImages.remove(index);
-      }
-      for (const entry of oldNumbers) {
-        const index = item.boneNumbers.numbers.indexOf(entry);
-        if (index >= 0) item.boneNumbers.remove(index);
-      }
+      removeOld();
       force = true;
       changed();
     } catch (error) {
       prepared?.release();
-      report(error);
+      if (current()) editError = error instanceof Error ? error.message : String(error);
     } finally {
-      busy = false;
-      sync();
+      if (current()) {
+        loading = false;
+        sync();
+      }
     }
-  };
+  }
   const previous = viewer.onChange;
   viewer.onChange = () => {
     previous?.();

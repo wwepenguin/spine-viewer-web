@@ -145,5 +145,5 @@ export function installMediaPanel(viewer: SkeletonViewer, report: (error: unknow
     sync();
   };
   sync();
-  installSlotBindingPanel(viewer, report);
+  installSlotBindingPanel(viewer);
 }
